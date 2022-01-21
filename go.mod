@@ -9,7 +9,6 @@ require (
 	github.com/go-openapi/swag v0.19.15
 	github.com/go-openapi/validate v0.20.3
 	github.com/google/uuid v1.3.0
-	github.com/johnhoman/kfp-releaser v0.0.0-20220121033344-0e8922a84e3c
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 )

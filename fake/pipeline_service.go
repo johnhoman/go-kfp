@@ -4,20 +4,21 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/go-openapi/runtime"
-	"github.com/go-openapi/strfmt"
-	"github.com/google/uuid"
-	"github.com/johnhoman/kfp-releaser/pkg/kfp/pipelines"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
-	ps "github.com/johnhoman/kfp-releaser/pkg/kfp/pipeline/client/pipeline_service"
-	"github.com/johnhoman/kfp-releaser/pkg/kfp/pipeline/models"
-	up "github.com/johnhoman/kfp-releaser/pkg/kfp/pipeline_upload/client/pipeline_upload_service"
-	upmodels "github.com/johnhoman/kfp-releaser/pkg/kfp/pipeline_upload/models"
+	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
+	"github.com/google/uuid"
+	"github.com/johnhoman/go-kfp/pipelines"
+
+	ps "github.com/johnhoman/go-kfp/api/pipeline/client/pipeline_service"
+	"github.com/johnhoman/go-kfp/api/pipeline/models"
+	up "github.com/johnhoman/go-kfp/api/pipeline_upload/client/pipeline_upload_service"
+	upmodels "github.com/johnhoman/go-kfp/api/pipeline_upload/models"
 )
 
 

@@ -2,12 +2,12 @@ package pipelines_test
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/johnhoman/kfp-releaser/pkg/kfp/pipelines"
 	"strings"
 	"time"
 
-	"github.com/johnhoman/kfp-releaser/pkg/kfp/fake"
+	"github.com/google/uuid"
+	"github.com/johnhoman/go-kfp/fake"
+	"github.com/johnhoman/go-kfp/pipelines"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

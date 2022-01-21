@@ -2,9 +2,11 @@ package pipelines
 
 import (
     "context"
+
     "github.com/go-openapi/runtime"
-    ps "github.com/johnhoman/kfp-releaser/pkg/kfp/pipeline/client/pipeline_service"
-    up "github.com/johnhoman/kfp-releaser/pkg/kfp/pipeline_upload/client/pipeline_upload_service"
+
+    ps "github.com/johnhoman/go-kfp/api/pipeline/client/pipeline_service"
+    up "github.com/johnhoman/go-kfp/api/pipeline_upload/client/pipeline_upload_service"
 )
 
 type PipelineService interface {
