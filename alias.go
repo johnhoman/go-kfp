@@ -1,7 +1,6 @@
 package kfp
 
 import (
-    "github.com/go-openapi/runtime"
     "github.com/johnhoman/go-kfp/pipelines"
 )
 
@@ -17,6 +16,14 @@ type (
     DeleteVersionOptions = pipelines.DeleteOptions
 )
 
-func New(service pipelines.PipelineService, authInfo runtime.ClientAuthInfoWriter) pipelines.Interface {
-    return pipelines.New(service, authInfo)
-}
+
+var (
+    // New returns a new pipeline api client
+    New = pipelines.New
+
+    // IsNotFound returns true if the given error is not found and false otherwise
+    IsNotFound = pipelines.IsNotFound
+
+    // IsConflict returns true if an api resource with the same name already exists
+    IsConflict = pipelines.IsConflict
+)
