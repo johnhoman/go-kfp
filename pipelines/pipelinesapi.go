@@ -240,13 +240,15 @@ func (p *pipelinesApi) Get(ctx context.Context, options *GetOptions) (*Pipeline,
         }
     }
 
-    return &Pipeline{
-        ID: pl.ID,
-        Name: pl.Name,
-        Description: pl.Description,
-        CreatedAt: time.Time(pl.CreatedAt),
-        DefaultVersionID: pl.DefaultVersion.ID,
-    }, nil
+    pipeline := &Pipeline{}
+    pipeline.ID = pl.ID
+    pipeline.Name = pl.Name
+    pipeline.Description = pl.Description
+    pipeline.CreatedAt = time.Time(pl.CreatedAt)
+    if pl.DefaultVersion != nil {
+        pipeline.DefaultVersionID = pl.DefaultVersion.ID
+    }
+    return pipeline, nil
 }
 
 func (p *pipelinesApi) Update(ctx context.Context, options *UpdateOptions) (*Pipeline, error) {
