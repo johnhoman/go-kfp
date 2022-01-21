@@ -10,7 +10,7 @@ import (
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 
-	"github.com/johnhoman/kfp-releaser/pkg/kfp/pipeline/client/pipeline_service"
+	"github.com/johnhoman/go-kfp/api/pipeline/client/pipeline_service"
 )
 
 // Default backend API pipeline proto HTTP client.

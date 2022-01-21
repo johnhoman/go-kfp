@@ -12,7 +12,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 
-	"github.com/johnhoman/kfp-releaser/pkg/kfp/pipeline/models"
+	"github.com/johnhoman/go-kfp/api/pipeline/models"
 )
 
 // CreatePipelineReader is a Reader for the CreatePipeline structure.

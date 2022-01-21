@@ -12,7 +12,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 
-	"github.com/johnhoman/kfp-releaser/pkg/kfp/pipeline_upload/models"
+	"github.com/johnhoman/go-kfp/api/pipeline_upload/models"
 )
 
 // UploadPipelineReader is a Reader for the UploadPipeline structure.
