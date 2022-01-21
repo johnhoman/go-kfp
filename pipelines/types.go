@@ -21,8 +21,12 @@ import (
 )
 
 
+// GetOptions is data required by the pipelines api to identify a pipeline or version
+// Either Name or ID can be used is applicable. If ID and Name are both provided then only
+// ID will be used
 type GetOptions struct {
     ID string
+    Name string
 }
 
 type CreateOptions struct {

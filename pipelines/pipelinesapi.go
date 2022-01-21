@@ -135,21 +135,20 @@ func (p *pipelinesApi) GetVersion(ctx context.Context, options *GetOptions) (*Pi
     }, nil
 }
 
-func (p *pipelinesApi) Create(ctx context.Context, options *CreateOptions) (*Pipeline, error) {
-
+func (p *pipelinesApi) getPipelineByName(ctx context.Context, name string) (*models.APIPipeline, error) {
     predicates := map[string]interface{}{
         "predicates": []interface{}{
             map[string]interface{}{
                 "op": "EQUALS",
                 "key": "name",
-                "string_value": options.Name,
+                "string_value": name,
             },
         },
     }
 
     raw, err := json.Marshal(predicates)
     if err != nil {
-        return &Pipeline{}, err
+        return &models.APIPipeline{}, err
     }
 
     // How do I get the ID other than listing?
@@ -159,13 +158,22 @@ func (p *pipelinesApi) Create(ctx context.Context, options *CreateOptions) (*Pip
         Filter: stringPointer(string(raw)),
     }, p.authInfo)
     if err != nil {
-        return &Pipeline{}, err
+        return &models.APIPipeline{}, err
     }
-    if listOut.GetPayload().TotalSize == 1 {
+    if listOut.GetPayload().TotalSize < 1 {
+        return &models.APIPipeline{}, NewNotFound()
+    }
+    return listOut.GetPayload().Pipelines[0], nil
+}
+
+func (p *pipelinesApi) Create(ctx context.Context, options *CreateOptions) (*Pipeline, error) {
+
+    _, err := p.getPipelineByName(ctx, options.Name)
+    if err == nil {
         return &Pipeline{}, NewConflict()
     }
 
-    raw, err = json.Marshal(options.Workflow)
+    raw, err := json.Marshal(options.Workflow)
     if err != nil {
         return &Pipeline{}, err
     }
@@ -196,25 +204,48 @@ func (p *pipelinesApi) Create(ctx context.Context, options *CreateOptions) (*Pip
 }
 
 func (p *pipelinesApi) Get(ctx context.Context, options *GetOptions) (*Pipeline, error) {
-    pl, err := p.service.GetPipeline(&ps.GetPipelineParams{
-        Context: ctx,
-        ID: options.ID,
-    }, nil)
-    if err != nil {
-        e, ok := err.(*ps.GetPipelineDefault)
-        if ok {
-            if e.Code() == http.StatusNotFound {
-                return &Pipeline{}, NewNotFound()
+
+    pl := &models.APIPipeline{}
+    rv := &Pipeline{}
+
+    if options.ID != "" {
+        out, err := p.service.GetPipeline(&ps.GetPipelineParams{
+            Context: ctx,
+            ID: options.ID,
+        }, nil)
+        if err != nil {
+            e, ok := err.(*ps.GetPipelineDefault)
+            if ok {
+                if e.Code() == http.StatusNotFound {
+                    return &Pipeline{}, NewNotFound()
+                }
             }
+            return rv, err
         }
-        return &Pipeline{}, err
+        *pl = *out.GetPayload()
+    } else {
+        if options.Name != "" {
+            out, err := p.getPipelineByName(ctx, options.Name)
+            if err != nil {
+                return rv, err
+            }
+            model, err := p.service.GetPipeline(&ps.GetPipelineParams{
+                Context: ctx,
+                ID: out.ID,
+            }, nil)
+            if err != nil {
+                return rv, err
+            }
+            *pl = *(model.GetPayload())
+        }
     }
+
     return &Pipeline{
-        ID: pl.GetPayload().ID,
-        Name: pl.GetPayload().Name,
-        Description: pl.GetPayload().Description,
-        CreatedAt: time.Time(pl.GetPayload().CreatedAt),
-        DefaultVersionID: pl.GetPayload().DefaultVersion.ID,
+        ID: pl.ID,
+        Name: pl.Name,
+        Description: pl.Description,
+        CreatedAt: time.Time(pl.CreatedAt),
+        DefaultVersionID: pl.DefaultVersion.ID,
     }, nil
 }
 

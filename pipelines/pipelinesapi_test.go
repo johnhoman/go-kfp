@@ -86,6 +86,22 @@ var _ = Describe("PipelinesApi", func() {
 		))
 		cancelFunc()
 	})
+	Context("GetPipeline", func() {
+		It("Should get a pipeline by name", func() {
+			var err error
+			pipeline, err = api.Create(ctx, &pipelines.CreateOptions{
+				Name:        name,
+				Workflow:    newWhaleSay(),
+				Description: description,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(pipeline).ToNot(BeNil())
+
+			get, err := api.Get(ctx, &pipelines.GetOptions{Name: name})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(get.ID).To(Equal(pipeline.ID))
+		})
+	})
 	Context("CreatePipeline", func() {
 		It("Can create a pipeline", func() {
 			var err error
