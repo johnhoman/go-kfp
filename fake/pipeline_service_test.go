@@ -110,8 +110,10 @@ var _ = Describe("PipelineService", func() {
 				}, nil)
 				if err != nil {
 					Expect(err.(*ps.DeletePipelineDefault).Code()).To(Or(Equal(http.StatusOK), Equal(http.StatusNotFound)))
+					Expect(out).Should(BeNil())
+				} else {
+					Expect(out).ShouldNot(BeNil())
 				}
-				Expect(out).ShouldNot(BeNil())
 			}
 		}
 		pipelineIds = nil
@@ -137,6 +139,7 @@ var _ = Describe("PipelineService", func() {
 		Expect(version.GetPayload().Name).To(Equal(out.GetPayload().Name))
 		Expect(version.GetPayload().Description).To(Equal(""))
 		Expect(version.GetPayload().CreatedAt).To(Equal(out.GetPayload().CreatedAt))
+		Expect(version.GetPayload().ResourceReferences[0].Key.ID).To(Equal(out.GetPayload().ID))
 	})
 	It("should return 404 for a pipeline that doesn't exist", func() {
 		out, err := service.GetPipeline(&ps.GetPipelineParams{
@@ -227,9 +230,7 @@ var _ = Describe("PipelineService", func() {
 			}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(vsOut).ShouldNot(BeNil())
-			// I don't think I need this functionality
-			// Expect(vsOut.Payload.Parameters[0].Name).To(Equal("name"))
-			// Expect(vsOut.Payload.Parameters[0].Value).To(Equal("Jack"))
+			Expect(vsOut.GetPayload().ResourceReferences[0].Key.ID).To(Equal(out.GetPayload().ID))
 		})
 		It("Should delete a pipeline version", func() {
 			out, err := service.UploadPipeline(&up.UploadPipelineParams{
@@ -474,9 +475,9 @@ var _ = Describe("PipelineService", func() {
 				Uploadfile:  reader,
 				Context:     ctx,
 			}, nil)
+			pipelineIds = append(pipelineIds, out.Payload.ID)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(out).ShouldNot(BeNil())
-			pipelineIds = append(pipelineIds, out.Payload.ID)
 
 			reader = newCowSay(name)
 			out, err = service.UploadPipeline(&up.UploadPipelineParams{
@@ -499,6 +500,7 @@ var _ = Describe("PipelineService", func() {
 				Uploadfile:  reader,
 				Context:     ctx,
 			}, nil)
+			pipelineIds = append(pipelineIds, out.Payload.ID)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(out).ShouldNot(BeNil())
 

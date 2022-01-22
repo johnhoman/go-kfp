@@ -148,12 +148,16 @@ func (p *pipelinesApi) GetVersion(ctx context.Context, options *GetVersionOption
 			}
 		}
 	}
-	return &PipelineVersion{
+	version := &PipelineVersion{
 		ID:         out.GetPayload().ID,
 		Name:       out.GetPayload().Name,
 		CreatedAt:  time.Time(out.GetPayload().CreatedAt),
-		PipelineID: options.ID,
-	}, nil
+	}
+	if len(out.GetPayload().ResourceReferences) > 0 {
+		refs := out.GetPayload().ResourceReferences
+		version.PipelineID = refs[0].Key.ID
+	}
+	return version, nil
 }
 
 func (p *pipelinesApi) getPipelineByName(ctx context.Context, name string) (*models.APIPipeline, error) {

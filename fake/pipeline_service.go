@@ -78,6 +78,8 @@ func (p *PipelineService) UploadPipeline(params *up.UploadPipelineParams, authIn
 			return nil, internalServerError
 		}
 	}
+	pipelineType := models.APIResourceTypePIPELINE
+	owner := models.APIRelationshipOWNER
 	uid := uuid.New().String()
 	now := strfmt.DateTime(time.Now().UTC())
 	m := models.APIPipeline{
@@ -87,6 +89,11 @@ func (p *PipelineService) UploadPipeline(params *up.UploadPipelineParams, authIn
 			Description: "",
 			ID:          uid,
 			Name:        *params.Name,
+			ResourceReferences: []*models.APIResourceReference{{
+			    Key:          &models.APIResourceKey{ID: uid, Type: &pipelineType},
+			    Name:         "",
+			    Relationship: &owner,
+		    }},
 		},
 		Description:        *params.Description,
 		Error:              "",
@@ -99,7 +106,9 @@ func (p *PipelineService) UploadPipeline(params *up.UploadPipelineParams, authIn
 	p.Mutex.Lock()
 	defer p.Mutex.Unlock()
 	p.Pipelines[m.ID] = m
-	p.PipelineVersions[m.ID] = map[string]models.APIPipelineVersion{m.ID: *m.DefaultVersion}
+	p.PipelineVersions[m.ID] = map[string]models.APIPipelineVersion{
+		m.ID: *m.DefaultVersion,
+	}
 	// Kubeflow api tracks upload api models and pipeline api models as separate objects in the swagger specs,
 	// so we have to duplicate it for the response here
 	payload := &upmodels.APIPipeline{}

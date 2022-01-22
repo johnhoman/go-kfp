@@ -267,6 +267,19 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(version.Name).To(Equal(pipeline.Name))
 			Expect(version.ID).To(Equal(pipeline.ID))
 			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
+
+			version, err = api.CreateVersion(ctx, &pipelines.CreateVersionOptions{
+				Name: name + "-1",
+				Description: "whale-say",
+				Workflow: newWhaleSay(),
+				PipelineID: pipeline.ID,
+			})
+			version, err = api.GetVersion(ctx, &pipelines.GetVersionOptions{ID: version.ID})
+			Expect(err).To(Succeed())
+			Expect(version.ID).ToNot(Equal(version.PipelineID))
+			Expect(version.PipelineID).To(Equal(pipeline.ID))
+			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
+
 		})
 		It("Should get the version by name", func() {
 			var err error
