@@ -261,7 +261,31 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(err).To(Succeed())
 			Expect(pipeline).ToNot(BeNil())
 
-			version, err := api.GetVersion(ctx, &pipelines.GetOptions{ID: pipeline.ID})
+			version, err := api.GetVersion(ctx, &pipelines.GetVersionOptions{ID: pipeline.ID})
+			Expect(err).To(Succeed())
+			Expect(version.PipelineID).To(Equal(pipeline.ID))
+			Expect(version.Name).To(Equal(pipeline.Name))
+			Expect(version.ID).To(Equal(pipeline.ID))
+			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
+		})
+		It("Should get the version by name", func() {
+			var err error
+			pipeline, err = api.Create(ctx, &pipelines.CreateOptions{
+				Name:        name,
+				Workflow:    newWhaleSay(),
+				Description: description,
+			})
+			Expect(err).To(Succeed())
+			Expect(pipeline).ToNot(BeNil())
+
+			version, err := api.GetVersion(ctx, &pipelines.GetVersionOptions{Name: pipeline.Name, PipelineID: pipeline.ID})
+			Expect(err).To(Succeed())
+			Expect(version.PipelineID).To(Equal(pipeline.ID))
+			Expect(version.Name).To(Equal(pipeline.Name))
+			Expect(version.ID).To(Equal(pipeline.ID))
+			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
+
+			version, err = api.GetVersion(ctx, &pipelines.GetVersionOptions{ID: pipeline.ID})
 			Expect(err).To(Succeed())
 			Expect(version.PipelineID).To(Equal(pipeline.ID))
 			Expect(version.Name).To(Equal(pipeline.Name))

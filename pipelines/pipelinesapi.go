@@ -35,20 +35,14 @@ type pipelinesApi struct {
 	authInfo runtime.ClientAuthInfoWriter
 }
 
-func (p *pipelinesApi) CreateVersion(ctx context.Context, options *CreateVersionOptions) (*PipelineVersion, error) {
-	rv := &PipelineVersion{}
-
-	// Make sure pipeline exists
-	if _, err := p.Get(ctx, &GetOptions{ID: options.PipelineID}); err != nil {
-		return rv, err
-	}
-
+func (p *pipelinesApi) getPipelineVersionByName(ctx context.Context, name string, pipelineId string) (*models.APIPipelineVersion, error) {
+	rv := &models.APIPipelineVersion{}
 	predicates := map[string]interface{}{
 		"predicates": []interface{}{
 			map[string]interface{}{
 				"op":           "EQUALS",
 				"key":          "name",
-				"string_value": options.Name,
+				"string_value": name,
 			},
 		},
 	}
@@ -62,17 +56,36 @@ func (p *pipelinesApi) CreateVersion(ctx context.Context, options *CreateVersion
 		Filter:          stringPointer(string(raw)),
 		PageSize:        int32Pointer(1),
 		ResourceKeyType: stringPointer(string(models.APIResourceTypePIPELINE)),
-		ResourceKeyID:   stringPointer(options.PipelineID),
+		ResourceKeyID:   stringPointer(pipelineId),
 		Context:         ctx,
 	}, p.authInfo)
 	if err != nil {
 		return rv, err
 	}
 	if len(versions.GetPayload().Versions) == 1 {
+		*rv = *versions.GetPayload().Versions[0]
+		return rv, nil
+	}
+	return rv, NewNotFound()
+}
+
+func (p *pipelinesApi) CreateVersion(ctx context.Context, options *CreateVersionOptions) (*PipelineVersion, error) {
+	rv := &PipelineVersion{}
+
+	// Make sure pipeline exists
+	if _, err := p.Get(ctx, &GetOptions{ID: options.PipelineID}); err != nil {
+		return rv, err
+	}
+
+	_, err := p.getPipelineVersionByName(ctx, options.Name, options.PipelineID)
+	if err != nil && !IsNotFound(err) {
+		return rv, err
+	}
+	if err == nil {
 		return rv, NewConflict()
 	}
 
-	raw, err = json.Marshal(options.Workflow)
+	raw, err := json.Marshal(options.Workflow)
 	if err != nil {
 		return rv, err
 	}
@@ -94,11 +107,11 @@ func (p *pipelinesApi) CreateVersion(ctx context.Context, options *CreateVersion
 	if err != nil {
 		return rv, err
 	}
-	return p.GetVersion(ctx, &GetOptions{ID: version.GetPayload().ID})
+	return p.GetVersion(ctx, &GetVersionOptions{ID: version.GetPayload().ID})
 }
 
 func (p *pipelinesApi) DeleteVersion(ctx context.Context, options *DeleteOptions) error {
-	_, err := p.GetVersion(ctx, &GetOptions{ID: options.ID})
+	_, err := p.GetVersion(ctx, &GetVersionOptions{ID: options.ID})
 	if err != nil {
 		return err
 	}
@@ -113,7 +126,16 @@ func (p *pipelinesApi) DeleteVersion(ctx context.Context, options *DeleteOptions
 	return nil
 }
 
-func (p *pipelinesApi) GetVersion(ctx context.Context, options *GetOptions) (*PipelineVersion, error) {
+func (p *pipelinesApi) GetVersion(ctx context.Context, options *GetVersionOptions) (*PipelineVersion, error) {
+	rv := &PipelineVersion{}
+	if len(options.ID) == 0 {
+		out, err := p.getPipelineVersionByName(ctx, options.Name, options.PipelineID)
+		if err != nil {
+			return rv, err
+		}
+		options = &GetVersionOptions{ID: out.ID}
+	}
+
 	out, err := p.service.GetPipelineVersion(&ps.GetPipelineVersionParams{
 		VersionID: options.ID,
 		Context:   ctx,

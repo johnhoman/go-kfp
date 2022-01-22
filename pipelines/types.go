@@ -28,6 +28,12 @@ type GetOptions struct {
 	Name string
 }
 
+type GetVersionOptions struct {
+	ID string
+	PipelineID string
+	Name string
+}
+
 type CreateOptions struct {
 	Description string
 	Name        string

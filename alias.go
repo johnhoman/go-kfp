@@ -11,7 +11,7 @@ type (
 	DeleteOptions = pipelines.DeleteOptions
 	UpdateOptions = pipelines.UpdateOptions
 
-	GetVersionOptions    = pipelines.GetOptions
+	GetVersionOptions    = pipelines.GetVersionOptions
 	CreateVersionOptions = pipelines.CreateVersionOptions
 	DeleteVersionOptions = pipelines.DeleteOptions
 
