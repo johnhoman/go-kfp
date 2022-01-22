@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/johnhoman/go-kfp/fake"
 	"net/http"
 	"strings"
 
@@ -29,7 +30,6 @@ import (
 	ps "github.com/johnhoman/go-kfp/api/pipeline/client/pipeline_service"
 	"github.com/johnhoman/go-kfp/api/pipeline/models"
 	up "github.com/johnhoman/go-kfp/api/pipeline_upload/client/pipeline_upload_service"
-	"github.com/johnhoman/go-kfp/fake"
 	"github.com/johnhoman/go-kfp/pipelines"
 
 	. "github.com/onsi/ginkgo"
@@ -46,7 +46,7 @@ func int32Ptr(i int32) *int32 {
 
 func newCowSay(name string) runtime.NamedReadCloser {
 	// Not sure if the name actually matters -- might be able to swap it for a uuid
-	reader := runtime.NamedReader(name +".yaml", strings.NewReader(`
+	reader := runtime.NamedReader(name+".yaml", strings.NewReader(`
     apiVersion: argoproj.io/v1alpha1
     kind: Workflow
     metadata:
@@ -105,7 +105,7 @@ var _ = Describe("PipelineService", func() {
 		if pipelineIds != nil {
 			for _, id := range pipelineIds {
 				out, err := service.DeletePipeline(&ps.DeletePipelineParams{
-					ID: id,
+					ID:      id,
 					Context: ctx,
 				}, nil)
 				if err != nil {
@@ -131,7 +131,7 @@ var _ = Describe("PipelineService", func() {
 
 		version, err := service.GetPipelineVersion(&ps.GetPipelineVersionParams{
 			VersionID: out.GetPayload().ID,
-			Context: ctx,
+			Context:   ctx,
 		}, nil)
 		Expect(version.GetPayload().ID).To(Equal(out.GetPayload().ID))
 		Expect(version.GetPayload().Name).To(Equal(out.GetPayload().Name))
@@ -140,12 +140,68 @@ var _ = Describe("PipelineService", func() {
 	})
 	It("should return 404 for a pipeline that doesn't exist", func() {
 		out, err := service.GetPipeline(&ps.GetPipelineParams{
-			ID: uuid.New().String(),
+			ID:      uuid.New().String(),
 			Context: ctx,
 		}, nil)
 		Expect(err).Should(HaveOccurred())
 		Expect(out).To(BeNil())
 		Expect(err.(*ps.GetPipelineDefault).Code()).To(Equal(http.StatusNotFound))
+	})
+	It("Should return no default pipeline version when the default version doesn't exist", func() {
+		out, err := service.UploadPipeline(&up.UploadPipelineParams{
+			Description: stringPtr(description),
+			Name:        stringPtr(name),
+			Uploadfile:  reader,
+			Context:     ctx,
+		}, nil)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(out).ShouldNot(BeNil())
+
+		_, err = service.DeletePipelineVersion(&ps.DeletePipelineVersionParams{
+			VersionID: out.GetPayload().ID,
+			Context:   ctx,
+		}, nil)
+		Expect(err).ToNot(HaveOccurred())
+
+		get, err := service.GetPipeline(&ps.GetPipelineParams{ID: out.GetPayload().ID, Context: ctx}, nil)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(get.GetPayload().DefaultVersion).To(BeNil())
+	})
+	It("Should change the default version when it's deleted", func() {
+		out, err := service.UploadPipeline(&up.UploadPipelineParams{
+			Description: stringPtr(description),
+			Name:        stringPtr(name),
+			Uploadfile:  reader,
+			Context:     ctx,
+		}, nil)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(out).ShouldNot(BeNil())
+
+		reader = newCowSay(name)
+		version, err := service.UploadPipelineVersion(&up.UploadPipelineVersionParams{
+			Description: stringPtr(description),
+			Name:        stringPtr(name + "-1"),
+			Pipelineid:  stringPtr(out.GetPayload().ID),
+			Uploadfile:  reader,
+			Context:     ctx,
+		}, nil)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(out).ShouldNot(BeNil())
+
+		get, err := service.GetPipeline(&ps.GetPipelineParams{ID: out.GetPayload().ID, Context: ctx}, nil)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(get.GetPayload().DefaultVersion.ID).To(Equal(version.GetPayload().ID))
+
+		_, err = service.DeletePipelineVersion(&ps.DeletePipelineVersionParams{
+			VersionID: get.GetPayload().ID,
+			Context:   ctx,
+		}, nil)
+		Expect(err).ToNot(HaveOccurred())
+
+		get, err = service.GetPipeline(&ps.GetPipelineParams{ID: out.GetPayload().ID, Context: ctx}, nil)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(get.GetPayload().DefaultVersion).ToNot(BeNil())
+		Expect(get.GetPayload().ID).To(Equal(out.GetPayload().ID))
 	})
 	Context("PipelineVersion", func() {
 		It("should upload a pipeline version", func() {
@@ -164,10 +220,10 @@ var _ = Describe("PipelineService", func() {
 			reader = newCowSay(name)
 			vsOut, err := service.UploadPipelineVersion(&up.UploadPipelineVersionParams{
 				Description: stringPtr(description),
-				Name: stringPtr(name + "-v1"),
-				Uploadfile: reader,
-				Context: ctx,
-				Pipelineid: stringPtr(out.Payload.ID),
+				Name:        stringPtr(name + "-v1"),
+				Uploadfile:  reader,
+				Context:     ctx,
+				Pipelineid:  stringPtr(out.Payload.ID),
 			}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(vsOut).ShouldNot(BeNil())
@@ -191,10 +247,10 @@ var _ = Describe("PipelineService", func() {
 			reader = newCowSay(name)
 			vsOut, err := service.UploadPipelineVersion(&up.UploadPipelineVersionParams{
 				Description: stringPtr(description),
-				Name: stringPtr(name + "-v1"),
-				Uploadfile: reader,
-				Context: ctx,
-				Pipelineid: stringPtr(out.Payload.ID),
+				Name:        stringPtr(name + "-v1"),
+				Uploadfile:  reader,
+				Context:     ctx,
+				Pipelineid:  stringPtr(out.Payload.ID),
 			}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(vsOut).ShouldNot(BeNil())
@@ -202,7 +258,7 @@ var _ = Describe("PipelineService", func() {
 
 			delOut, err := service.DeletePipelineVersion(&ps.DeletePipelineVersionParams{
 				VersionID: vsOut.GetPayload().ID,
-				Context: ctx,
+				Context:   ctx,
 			}, nil)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(delOut).ToNot(BeNil())
@@ -211,7 +267,7 @@ var _ = Describe("PipelineService", func() {
 		It("Cannot delete a pipeline version that doesn't exist", func() {
 			delOut, err := service.DeletePipelineVersion(&ps.DeletePipelineVersionParams{
 				VersionID: uuid.New().String(),
-				Context: ctx,
+				Context:   ctx,
 			}, nil)
 			Expect(err).To(HaveOccurred())
 			Expect(delOut).To(BeNil())
@@ -235,10 +291,10 @@ var _ = Describe("PipelineService", func() {
 			reader = newCowSay(name)
 			vsOut, err := service.UploadPipelineVersion(&up.UploadPipelineVersionParams{
 				Description: stringPtr(description),
-				Name: stringPtr(name + "-v1"),
-				Uploadfile: reader,
-				Context: ctx,
-				Pipelineid: stringPtr(out.Payload.ID),
+				Name:        stringPtr(name + "-v1"),
+				Uploadfile:  reader,
+				Context:     ctx,
+				Pipelineid:  stringPtr(out.Payload.ID),
 			}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(vsOut).ShouldNot(BeNil())
@@ -246,7 +302,7 @@ var _ = Describe("PipelineService", func() {
 
 			getVersion, err := service.GetPipelineVersion(&ps.GetPipelineVersionParams{
 				VersionID: vsOut.GetPayload().ID,
-				Context: ctx,
+				Context:   ctx,
 			}, nil)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(getVersion).ToNot(BeNil())
@@ -265,7 +321,7 @@ var _ = Describe("PipelineService", func() {
 
 			getVersion, err := service.GetPipelineVersion(&ps.GetPipelineVersionParams{
 				VersionID: uuid.New().String(),
-				Context: ctx,
+				Context:   ctx,
 			}, nil)
 			Expect(err).To(HaveOccurred())
 			Expect(getVersion).To(BeNil())
@@ -289,10 +345,10 @@ var _ = Describe("PipelineService", func() {
 			reader = newCowSay(name)
 			v1, err := service.UploadPipelineVersion(&up.UploadPipelineVersionParams{
 				Description: stringPtr(description),
-				Name: stringPtr(name + "-v1"),
-				Uploadfile: reader,
-				Context: ctx,
-				Pipelineid: stringPtr(out.Payload.ID),
+				Name:        stringPtr(name + "-v1"),
+				Uploadfile:  reader,
+				Context:     ctx,
+				Pipelineid:  stringPtr(out.Payload.ID),
 			}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(v1).ShouldNot(BeNil())
@@ -301,17 +357,17 @@ var _ = Describe("PipelineService", func() {
 			reader = newCowSay(name)
 			v2, err := service.UploadPipelineVersion(&up.UploadPipelineVersionParams{
 				Description: stringPtr(description),
-				Name: stringPtr(name + "-v2"),
-				Uploadfile: reader,
-				Context: ctx,
-				Pipelineid: stringPtr(out.Payload.ID),
+				Name:        stringPtr(name + "-v2"),
+				Uploadfile:  reader,
+				Context:     ctx,
+				Pipelineid:  stringPtr(out.Payload.ID),
 			}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(v2).ShouldNot(BeNil())
 			Expect(v2.GetPayload().ID).ToNot(Equal(out.GetPayload().ID))
 
 			getPipeline, err := service.GetPipeline(&ps.GetPipelineParams{
-				ID: out.GetPayload().ID,
+				ID:      out.GetPayload().ID,
 				Context: ctx,
 			}, nil)
 			// This is not guaranteed - this has to do with default server behaviour
@@ -319,15 +375,15 @@ var _ = Describe("PipelineService", func() {
 
 			updateOut, err := service.UpdatePipelineDefaultVersion(&ps.UpdatePipelineDefaultVersionParams{
 				PipelineID: out.GetPayload().ID,
-				VersionID: v1.GetPayload().ID,
-				Context: ctx,
+				VersionID:  v1.GetPayload().ID,
+				Context:    ctx,
 			}, nil)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(updateOut).ToNot(BeNil())
 			Expect(updateOut).To(Equal(&ps.UpdatePipelineDefaultVersionOK{Payload: map[string]interface{}{}}))
 
 			getPipeline, err = service.GetPipeline(&ps.GetPipelineParams{
-				ID: out.GetPayload().ID,
+				ID:      out.GetPayload().ID,
 				Context: ctx,
 			}, nil)
 			Expect(err).ToNot(HaveOccurred())
@@ -347,7 +403,7 @@ var _ = Describe("PipelineService", func() {
 			pipelineIds = append(pipelineIds, out.Payload.ID)
 
 			getOut, err := service.GetPipeline(&ps.GetPipelineParams{
-				ID: out.GetPayload().ID,
+				ID:      out.GetPayload().ID,
 				Context: ctx,
 			}, nil)
 			// Didn't update
@@ -356,15 +412,15 @@ var _ = Describe("PipelineService", func() {
 			id := uuid.New().String()
 			updateOut, err := service.UpdatePipelineDefaultVersion(&ps.UpdatePipelineDefaultVersionParams{
 				PipelineID: out.GetPayload().ID,
-				VersionID: id,
-				Context: ctx,
+				VersionID:  id,
+				Context:    ctx,
 			}, nil)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(updateOut).ToNot(BeNil())
 			Expect(updateOut).To(Equal(&ps.UpdatePipelineDefaultVersionOK{Payload: map[string]interface{}{}}))
 
 			getOut, err = service.GetPipeline(&ps.GetPipelineParams{
-				ID: out.GetPayload().ID,
+				ID:      out.GetPayload().ID,
 				Context: ctx,
 			}, nil)
 			// Didn't update -- Kubeflow Bug
@@ -385,10 +441,10 @@ var _ = Describe("PipelineService", func() {
 			reader = newCowSay(name)
 			v1, err := service.UploadPipelineVersion(&up.UploadPipelineVersionParams{
 				Description: stringPtr(description),
-				Name: stringPtr(name + "-v1"),
-				Uploadfile: reader,
-				Context: ctx,
-				Pipelineid: stringPtr(out.Payload.ID),
+				Name:        stringPtr(name + "-v1"),
+				Uploadfile:  reader,
+				Context:     ctx,
+				Pipelineid:  stringPtr(out.Payload.ID),
 			}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(v1).ShouldNot(BeNil())
@@ -396,14 +452,14 @@ var _ = Describe("PipelineService", func() {
 
 			updateOut, err := service.UpdatePipelineDefaultVersion(&ps.UpdatePipelineDefaultVersionParams{
 				PipelineID: uuid.New().String(),
-				VersionID: v1.GetPayload().ID,
-				Context: ctx,
+				VersionID:  v1.GetPayload().ID,
+				Context:    ctx,
 			}, nil)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(updateOut).ToNot(BeNil())
 
 			getOut, err := service.GetPipeline(&ps.GetPipelineParams{
-				ID: out.GetPayload().ID,
+				ID:      out.GetPayload().ID,
 				Context: ctx,
 			}, nil)
 			// Didn't update
@@ -448,7 +504,7 @@ var _ = Describe("PipelineService", func() {
 
 			delOut, err := service.DeletePipeline(&ps.DeletePipelineParams{
 				Context: ctx,
-				ID: out.Payload.ID,
+				ID:      out.Payload.ID,
 			}, nil)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(*delOut).To(Equal(ps.DeletePipelineOK{Payload: map[string]interface{}{}}))
@@ -456,7 +512,7 @@ var _ = Describe("PipelineService", func() {
 		It("Should return 404 when deleting a pipeline that doesn't exist", func() {
 			_, err := service.DeletePipeline(&ps.DeletePipelineParams{
 				Context: ctx,
-				ID: uuid.New().String(),
+				ID:      uuid.New().String(),
 			}, nil)
 			Expect(err).Should(HaveOccurred())
 			Expect(err.(*ps.DeletePipelineDefault).Code()).To(Equal(http.StatusNotFound))
@@ -488,10 +544,10 @@ var _ = Describe("PipelineService", func() {
 		pipelines := make([]*models.APIPipeline, 0, 5)
 
 		listOut, err := service.ListPipelines(&ps.ListPipelinesParams{
-			Filter: stringPtr(string(raw)),
-			PageSize: int32Ptr(3),
-			PageToken: nil,
-			Context: ctx,
+			Filter:                   stringPtr(string(raw)),
+			PageSize:                 int32Ptr(3),
+			PageToken:                nil,
+			Context:                  ctx,
 			ResourceReferenceKeyType: stringPtr(string(models.APIResourceTypeNAMESPACE)),
 		}, nil)
 		// eyJTb3J0QnlGaWVsZE5hbWUiOiJDcmVhdGVkQXRJblNlYyIsIlNvcnRCeUZpZWxkVmFsdWUiOjE2NDI0NzU2MzQsIlNvcnRCeUZpZWxkUHJlZml4IjoicGlwZWxpbmVzLiIsIktleUZpZWxkTmFtZSI6IlVVSUQiLCJLZXlGaWVsZFZhbHVlIjoiYjUxMDU0YjctYzc4OS00YTQ5LWJiNGQtODZkOTEwMzQwMDZhIiwiS2V5RmllbGRQcmVmaXgiOiJwaXBlbGluZXMuIiwiSXNEZXNjIjpmYWxzZSwiTW9kZWxOYW1lIjoicGlwZWxpbmVzIiwiRmlsdGVyIjp7IkZpbHRlclByb3RvIjoie1wicHJlZGljYXRlc1wiOlt7XCJvcFwiOlwiSVNfU1VCU1RSSU5HXCIsXCJrZXlcIjpcInBpcGVsaW5lcy5OYW1lXCIsXCJzdHJpbmdWYWx1ZVwiOlwidGVzdHBpcGVsaW5lLTA2MmYzY2FjXCJ9XX0iLCJFUSI6e30sIk5FUSI6e30sIkdUIjp7fSwiR1RFIjp7fSwiTFQiOnt9LCJMVEUiOnt9LCJJTiI6e30sIlNVQlNUUklORyI6eyJwaXBlbGluZXMuTmFtZSI6WyJ0ZXN0cGlwZWxpbmUtMDYyZjNjYWMiXX19fQ==
@@ -500,11 +556,11 @@ var _ = Describe("PipelineService", func() {
 		Expect(listOut.Payload.TotalSize).To(Equal(int32(5)))
 		pipelines = append(pipelines, listOut.Payload.Pipelines...)
 		listOut, err = service.ListPipelines(&ps.ListPipelinesParams{
-			Filter: stringPtr(string(raw)),
-			PageSize: int32Ptr(2),
-			PageToken: &listOut.Payload.NextPageToken,
+			Filter:                   stringPtr(string(raw)),
+			PageSize:                 int32Ptr(2),
+			PageToken:                &listOut.Payload.NextPageToken,
 			ResourceReferenceKeyType: stringPtr(string(models.APIResourceTypeNAMESPACE)),
-			Context: ctx,
+			Context:                  ctx,
 		}, nil)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(listOut.Payload.Pipelines).To(HaveLen(2))
@@ -536,7 +592,7 @@ var _ = Describe("PipelineService", func() {
 			out, err := service.UploadPipelineVersion(&up.UploadPipelineVersionParams{
 				Description: stringPtr(description),
 				Name:        stringPtr(fmt.Sprintf("%s-%d", name, k)),
-				Pipelineid: stringPtr(out.GetPayload().ID),
+				Pipelineid:  stringPtr(out.GetPayload().ID),
 				Uploadfile:  reader,
 				Context:     ctx,
 			}, nil)
@@ -554,12 +610,12 @@ var _ = Describe("PipelineService", func() {
 		versions := make([]*models.APIPipelineVersion, 0, 5)
 
 		listOut, err := service.ListPipelineVersions(&ps.ListPipelineVersionsParams{
-			Filter: stringPtr(string(raw)),
-			PageSize: int32Ptr(3),
-			PageToken: nil,
-			Context: ctx,
+			Filter:          stringPtr(string(raw)),
+			PageSize:        int32Ptr(3),
+			PageToken:       nil,
+			Context:         ctx,
 			ResourceKeyType: stringPtr(string(models.APIResourceTypePIPELINE)),
-			ResourceKeyID: stringPtr(out.GetPayload().ID),
+			ResourceKeyID:   stringPtr(out.GetPayload().ID),
 		}, nil)
 		// eyJTb3J0QnlGaWVsZE5hbWUiOiJDcmVhdGVkQXRJblNlYyIsIlNvcnRCeUZpZWxkVmFsdWUiOjE2NDI0NzU2MzQsIlNvcnRCeUZpZWxkUHJlZml4IjoicGlwZWxpbmVzLiIsIktleUZpZWxkTmFtZSI6IlVVSUQiLCJLZXlGaWVsZFZhbHVlIjoiYjUxMDU0YjctYzc4OS00YTQ5LWJiNGQtODZkOTEwMzQwMDZhIiwiS2V5RmllbGRQcmVmaXgiOiJwaXBlbGluZXMuIiwiSXNEZXNjIjpmYWxzZSwiTW9kZWxOYW1lIjoicGlwZWxpbmVzIiwiRmlsdGVyIjp7IkZpbHRlclByb3RvIjoie1wicHJlZGljYXRlc1wiOlt7XCJvcFwiOlwiSVNfU1VCU1RSSU5HXCIsXCJrZXlcIjpcInBpcGVsaW5lcy5OYW1lXCIsXCJzdHJpbmdWYWx1ZVwiOlwidGVzdHBpcGVsaW5lLTA2MmYzY2FjXCJ9XX0iLCJFUSI6e30sIk5FUSI6e30sIkdUIjp7fSwiR1RFIjp7fSwiTFQiOnt9LCJMVEUiOnt9LCJJTiI6e30sIlNVQlNUUklORyI6eyJwaXBlbGluZXMuTmFtZSI6WyJ0ZXN0cGlwZWxpbmUtMDYyZjNjYWMiXX19fQ==
 		Expect(err).ToNot(HaveOccurred())
@@ -567,12 +623,12 @@ var _ = Describe("PipelineService", func() {
 		Expect(listOut.Payload.TotalSize).To(Equal(int32(6)))
 		versions = append(versions, listOut.Payload.Versions...)
 		listOut, err = service.ListPipelineVersions(&ps.ListPipelineVersionsParams{
-			Filter: stringPtr(string(raw)),
-			PageSize: int32Ptr(3),
-			PageToken: &listOut.Payload.NextPageToken,
+			Filter:          stringPtr(string(raw)),
+			PageSize:        int32Ptr(3),
+			PageToken:       &listOut.Payload.NextPageToken,
 			ResourceKeyType: stringPtr(string(models.APIResourceTypePIPELINE)),
-			ResourceKeyID: stringPtr(out.GetPayload().ID),
-			Context: ctx,
+			ResourceKeyID:   stringPtr(out.GetPayload().ID),
+			Context:         ctx,
 		}, nil)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(listOut.Payload.Versions).To(HaveLen(3))
@@ -590,22 +646,22 @@ var _ = Describe("PipelineService", func() {
 		}
 	})
 	/*
-	table.DescribeTable("", func(filter map[string]interface{}) {
-		raw, err := json.Marshal(filter)
-		Expect(err).ToNot(HaveOccurred())
-		_, err = pipelineService.ListPipelines(&ps.ListPipelinesParams{
-			Filter: stringPtr(string(raw)),
-			ResourceReferenceKeyType: stringPtr(string(models.APIResourceTypeNAMESPACE)),
-			Context: ctx,
-		}, nil)
-		Expect(err).To(HaveOccurred())
-		Expect(err.(*ps.ListPipelinesDefault).Code()).To(Equal(http.StatusBadRequest))
-	}, table.Entry("", map[string]interface{}{
-		"predicate": map[string]interface{}{"op": "IS_SUBSTRING", "key": "name", "string_value": name},
-	}), table.Entry("", map[string]interface{}{
-		"predicates": map[string]interface{}{"op": "IS_SUBSTRING", "key": "name", "string_value": name},
-	}))
-	 */
+		table.DescribeTable("", func(filter map[string]interface{}) {
+			raw, err := json.Marshal(filter)
+			Expect(err).ToNot(HaveOccurred())
+			_, err = pipelineService.ListPipelines(&ps.ListPipelinesParams{
+				Filter: stringPtr(string(raw)),
+				ResourceReferenceKeyType: stringPtr(string(models.APIResourceTypeNAMESPACE)),
+				Context: ctx,
+			}, nil)
+			Expect(err).To(HaveOccurred())
+			Expect(err.(*ps.ListPipelinesDefault).Code()).To(Equal(http.StatusBadRequest))
+		}, table.Entry("", map[string]interface{}{
+			"predicate": map[string]interface{}{"op": "IS_SUBSTRING", "key": "name", "string_value": name},
+		}), table.Entry("", map[string]interface{}{
+			"predicates": map[string]interface{}{"op": "IS_SUBSTRING", "key": "name", "string_value": name},
+		}))
+	*/
 	/*
 		DescribeTable("create should fail", func(body *models.APIPipeline, messagePrefix string, code int) {
 			params := &ps.CreatePipelineParams{Body: body, Context: ctx}

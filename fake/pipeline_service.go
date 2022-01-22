@@ -37,25 +37,24 @@ import (
 	upmodels "github.com/johnhoman/go-kfp/api/pipeline_upload/models"
 )
 
-
 type PagedRequest struct {
-	Items []*models.APIPipeline
+	Items    []*models.APIPipeline
 	LastSent int
-	Total int
+	Total    int
 }
 
 type PagedVersionRequest struct {
-	Items []*models.APIPipelineVersion
+	Items    []*models.APIPipelineVersion
 	LastSent int
-	Total int
+	Total    int
 }
 
 type PipelineService struct {
 	sync.Mutex
 	// map[models.APIPipeline.ID]models.APIPipeline
-	Pipelines        map[string]models.APIPipeline
-	PipelineVersions map[string]map[string]models.APIPipelineVersion
-	PagedRequests    map[string]PagedRequest
+	Pipelines            map[string]models.APIPipeline
+	PipelineVersions     map[string]map[string]models.APIPipelineVersion
+	PagedRequests        map[string]PagedRequest
 	PagedVersionRequests map[string]PagedVersionRequest
 }
 
@@ -84,18 +83,18 @@ func (p *PipelineService) UploadPipeline(params *up.UploadPipelineParams, authIn
 	m := models.APIPipeline{
 		CreatedAt: now,
 		DefaultVersion: &models.APIPipelineVersion{
-			CreatedAt: now,
+			CreatedAt:   now,
 			Description: "",
-			ID: uid,
-			Name: *params.Name,
+			ID:          uid,
+			Name:        *params.Name,
 		},
-		Description: *params.Description,
-		Error: "",
-		ID: uid,
-		Name: *params.Name,
-		Parameters: nil,
+		Description:        *params.Description,
+		Error:              "",
+		ID:                 uid,
+		Name:               *params.Name,
+		Parameters:         nil,
 		ResourceReferences: nil,
-		URL: nil,
+		URL:                nil,
 	}
 	p.Mutex.Lock()
 	defer p.Mutex.Unlock()
@@ -114,7 +113,7 @@ func (p *PipelineService) UploadPipeline(params *up.UploadPipelineParams, authIn
 		parameters := make([]*upmodels.APIParameter, len(m.Parameters))
 		for _, p := range m.Parameters {
 			parameters = append(parameters, &upmodels.APIParameter{
-				Name: p.Name,
+				Name:  p.Name,
 				Value: p.Value,
 			})
 		}
@@ -151,8 +150,8 @@ func (p *PipelineService) UploadPipelineVersion(params *up.UploadPipelineVersion
 	pipelineType := models.APIResourceTypePIPELINE
 	owner := models.APIRelationshipOWNER
 	m.ResourceReferences = []*models.APIResourceReference{{
-		Key: &models.APIResourceKey{ID: id, Type: &pipelineType},
-		Name: "",
+		Key:          &models.APIResourceKey{ID: id, Type: &pipelineType},
+		Name:         "",
 		Relationship: &owner,
 	}}
 	m.Description = description
@@ -176,10 +175,10 @@ func (p *PipelineService) UploadPipelineVersion(params *up.UploadPipelineVersion
 		for _, ref := range m.ResourceReferences {
 			out.ResourceReferences = append(out.ResourceReferences, &upmodels.APIResourceReference{
 				Key: &upmodels.APIResourceKey{
-					ID: ref.Key.ID,
+					ID:   ref.Key.ID,
 					Type: upmodels.NewAPIResourceType(upmodels.APIResourceType(*ref.Key.Type)),
 				},
-				Name: ref.Name,
+				Name:         ref.Name,
 				Relationship: upmodels.NewAPIRelationship(upmodels.APIRelationship(*ref.Relationship)),
 			})
 		}
@@ -204,9 +203,26 @@ func (p *PipelineService) DeletePipeline(params *ps.DeletePipelineParams, authIn
 
 func (p *PipelineService) DeletePipelineVersion(params *ps.DeletePipelineVersionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ps.ClientOption) (*ps.DeletePipelineVersionOK, error) {
 	for id, versions := range p.PipelineVersions {
-		_, ok := versions[params.VersionID]
+		version, ok := versions[params.VersionID]
 		if ok {
 			delete(p.PipelineVersions[id], params.VersionID)
+			pipeline := p.Pipelines[id]
+			if pipeline.DefaultVersion.ID == version.ID {
+				newest, _ := time.Parse(time.RFC3339, time.RFC3339)
+				if len(p.PipelineVersions[id]) == 0 {
+					pipeline.DefaultVersion = nil
+				} else {
+					latest := &models.APIPipelineVersion{CreatedAt: strfmt.DateTime(newest)}
+					for _, version := range p.PipelineVersions[id] {
+						if time.Time(version.CreatedAt).After(time.Time(latest.CreatedAt)) {
+							*latest = version
+						}
+					}
+					pipeline.DefaultVersion = latest
+				}
+				p.Pipelines[id] = pipeline
+			}
+
 			return &ps.DeletePipelineVersionOK{Payload: map[string]interface{}{}}, nil
 		}
 	}
@@ -268,7 +284,7 @@ func (p *PipelineService) ListPipelines(params *ps.ListPipelinesParams, authInfo
 			pageSize--
 		}
 		token := *params.PageToken
-		if req.LastSent == req.Total - 1 {
+		if req.LastSent == req.Total-1 {
 			// Finished sending everything
 			delete(p.PagedRequests, token)
 			token = ""
@@ -277,8 +293,8 @@ func (p *PipelineService) ListPipelines(params *ps.ListPipelinesParams, authInfo
 		}
 		return &ps.ListPipelinesOK{Payload: &models.APIListPipelinesResponse{
 			NextPageToken: token,
-			Pipelines: apiPipelines,
-			TotalSize: int32(req.Total),
+			Pipelines:     apiPipelines,
+			TotalSize:     int32(req.Total),
 		}}, nil
 	}
 
@@ -306,14 +322,16 @@ func (p *PipelineService) ListPipelines(params *ps.ListPipelinesParams, authInfo
 			return nil, ps.NewListPipelinesDefault(http.StatusBadRequest)
 		} else {
 			switch op {
-			case "EQUALS": {
-				pred = func(a, b string) bool {
-					return a == b
+			case "EQUALS":
+				{
+					pred = func(a, b string) bool {
+						return a == b
+					}
 				}
-			}
-			case "IS_SUBSTRING": {
-				pred = strings.Contains
-			}
+			case "IS_SUBSTRING":
+				{
+					pred = strings.Contains
+				}
 			default:
 				return nil, ps.NewListPipelinesDefault(http.StatusBadRequest)
 			}
@@ -343,16 +361,16 @@ func (p *PipelineService) ListPipelines(params *ps.ListPipelinesParams, authInfo
 	if int(*params.PageSize) < len(validPipelines) {
 		token = base64.StdEncoding.EncodeToString([]byte(uuid.New().String()))
 		p.PagedRequests[token] = PagedRequest{
-			Total: len(validPipelines),
-			Items: validPipelines,
+			Total:    len(validPipelines),
+			Items:    validPipelines,
 			LastSent: int(*params.PageSize) - 1,
 		}
 		page = validPipelines[:*params.PageSize]
 	}
 
 	out := &ps.ListPipelinesOK{Payload: &models.APIListPipelinesResponse{
-		Pipelines: page,
-		TotalSize: int32(len(validPipelines)),
+		Pipelines:     page,
+		TotalSize:     int32(len(validPipelines)),
 		NextPageToken: token,
 	}}
 	return out, nil
@@ -374,7 +392,7 @@ func (p *PipelineService) ListPipelineVersions(params *ps.ListPipelineVersionsPa
 			pageSize--
 		}
 		token := *params.PageToken
-		if req.LastSent == req.Total - 1 {
+		if req.LastSent == req.Total-1 {
 			// Finished sending everything
 			delete(p.PagedVersionRequests, token)
 			token = ""
@@ -383,8 +401,8 @@ func (p *PipelineService) ListPipelineVersions(params *ps.ListPipelineVersionsPa
 		}
 		return &ps.ListPipelineVersionsOK{Payload: &models.APIListPipelineVersionsResponse{
 			NextPageToken: token,
-			Versions: versions,
-			TotalSize: int32(req.Total),
+			Versions:      versions,
+			TotalSize:     int32(req.Total),
 		}}, nil
 	}
 
@@ -412,14 +430,16 @@ func (p *PipelineService) ListPipelineVersions(params *ps.ListPipelineVersionsPa
 			return nil, ps.NewListPipelineVersionsDefault(http.StatusBadRequest)
 		} else {
 			switch op {
-			case "EQUALS": {
-				pred = func(a, b string) bool {
-					return a == b
+			case "EQUALS":
+				{
+					pred = func(a, b string) bool {
+						return a == b
+					}
 				}
-			}
-			case "IS_SUBSTRING": {
-				pred = strings.Contains
-			}
+			case "IS_SUBSTRING":
+				{
+					pred = strings.Contains
+				}
 			default:
 				return nil, ps.NewListPipelineVersionsDefault(http.StatusBadRequest)
 			}
@@ -449,16 +469,16 @@ func (p *PipelineService) ListPipelineVersions(params *ps.ListPipelineVersionsPa
 	if int(*params.PageSize) < len(validVersions) {
 		token = base64.StdEncoding.EncodeToString([]byte(uuid.New().String()))
 		p.PagedVersionRequests[token] = PagedVersionRequest{
-			Total: len(validVersions),
-			Items: validVersions,
+			Total:    len(validVersions),
+			Items:    validVersions,
 			LastSent: int(*params.PageSize) - 1,
 		}
 		page = validVersions[:*params.PageSize]
 	}
 
 	out := &ps.ListPipelineVersionsOK{Payload: &models.APIListPipelineVersionsResponse{
-		Versions: page,
-		TotalSize: int32(len(validVersions)),
+		Versions:      page,
+		TotalSize:     int32(len(validVersions)),
 		NextPageToken: token,
 	}}
 	return out, nil
@@ -468,9 +488,9 @@ var _ pipelines.PipelineService = &PipelineService{}
 
 func NewPipelineService() *PipelineService {
 	return &PipelineService{
-		Pipelines:        make(map[string]models.APIPipeline),
-		PipelineVersions: map[string]map[string]models.APIPipelineVersion{},
-		PagedRequests: make(map[string]PagedRequest),
+		Pipelines:            make(map[string]models.APIPipeline),
+		PipelineVersions:     map[string]map[string]models.APIPipelineVersion{},
+		PagedRequests:        make(map[string]PagedRequest),
 		PagedVersionRequests: make(map[string]PagedVersionRequest),
 	}
 }

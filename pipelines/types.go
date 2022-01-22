@@ -17,51 +17,50 @@ limitations under the License.
 package pipelines
 
 import (
-    "time"
+	"time"
 )
-
 
 // GetOptions is data required by the pipelines api to identify a pipeline or version
 // Either Name or ID can be used is applicable. If ID and Name are both provided then only
 // ID will be used
 type GetOptions struct {
-    ID string
-    Name string
+	ID   string
+	Name string
 }
 
 type CreateOptions struct {
-    Description string
-    Name string
-    Workflow map[string]interface{}
+	Description string
+	Name        string
+	Workflow    map[string]interface{}
 }
 
 type CreateVersionOptions struct {
-    Description string
-    Name string
-    Workflow map[string]interface{}
-    PipelineID string
+	Description string
+	Name        string
+	Workflow    map[string]interface{}
+	PipelineID  string
 }
 
 type UpdateOptions struct {
-    ID string
-    DefaultVersionID string
+	ID               string
+	DefaultVersionID string
 }
 
 type DeleteOptions struct {
-    ID string
+	ID string
 }
 
 type Pipeline struct {
-    ID string
-    Name string
-    Description string
-    CreatedAt time.Time
-    DefaultVersionID string
+	ID               string
+	Name             string
+	Description      string
+	CreatedAt        time.Time
+	DefaultVersionID string
 }
 
 type PipelineVersion struct {
-    ID string
-    Name string
-    CreatedAt time.Time
-    PipelineID string
+	ID         string
+	Name       string
+	CreatedAt  time.Time
+	PipelineID string
 }
