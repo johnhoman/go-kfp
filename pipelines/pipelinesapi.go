@@ -205,6 +205,9 @@ func (p *pipelinesApi) Create(ctx context.Context, options *CreateOptions) (*Pip
 	if err == nil {
 		return &Pipeline{}, NewConflict()
 	}
+	if !IsNotFound(err) {
+		return &Pipeline{}, err
+	}
 
 	raw, err := json.Marshal(options.Workflow)
 	if err != nil {
