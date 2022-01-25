@@ -90,7 +90,7 @@ func (p *pipelinesApi) CreateVersion(ctx context.Context, options *CreateVersion
 		return rv, err
 	}
 
-	reader := runtime.NamedReader(options.Name+".json", bytes.NewReader(raw))
+	reader := runtime.NamedReader(options.Name+".yaml", bytes.NewReader(raw))
 	defer func() {
 		if err := reader.Close(); err != nil {
 			panic("do i need to close this?" + err.Error())
@@ -203,7 +203,7 @@ func (p *pipelinesApi) Create(ctx context.Context, options *CreateOptions) (*Pip
 		return &Pipeline{}, err
 	}
 
-	reader := runtime.NamedReader(options.Name+".json", bytes.NewReader(raw))
+	reader := runtime.NamedReader(options.Name+".yaml", bytes.NewReader(raw))
 	defer func() {
 		if err := reader.Close(); err != nil {
 			panic("do i need to close this?" + err.Error())
