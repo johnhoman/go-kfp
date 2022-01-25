@@ -187,6 +187,10 @@ func (p *pipelinesApi) getPipelineByName(ctx context.Context, name string) (*mod
 		Filter:   stringPointer(string(raw)),
 	}, p.authInfo)
 	if err != nil {
+		e, ok := err.(*ps.ListPipelineVersionsDefault)
+		if ok && e.Code() == http.StatusNotFound {
+			return &models.APIPipeline{}, NewNotFound()
+		}
 		return &models.APIPipeline{}, err
 	}
 	if listOut.GetPayload().TotalSize < 1 {
