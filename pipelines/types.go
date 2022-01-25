@@ -29,9 +29,9 @@ type GetOptions struct {
 }
 
 type GetVersionOptions struct {
-	ID string
+	ID         string
 	PipelineID string
-	Name string
+	Name       string
 }
 
 type CreateOptions struct {

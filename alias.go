@@ -15,7 +15,7 @@ type (
 	CreateVersionOptions = pipelines.CreateVersionOptions
 	DeleteVersionOptions = pipelines.DeleteOptions
 
-	Pipeline = pipelines.Pipeline
+	Pipeline        = pipelines.Pipeline
 	PipelineVersion = pipelines.PipelineVersion
 )
 

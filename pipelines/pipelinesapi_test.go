@@ -269,10 +269,10 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
 
 			version, err = api.CreateVersion(ctx, &pipelines.CreateVersionOptions{
-				Name: name + "-1",
+				Name:        name + "-1",
 				Description: "whale-say",
-				Workflow: newWhaleSay(),
-				PipelineID: pipeline.ID,
+				Workflow:    newWhaleSay(),
+				PipelineID:  pipeline.ID,
 			})
 			version, err = api.GetVersion(ctx, &pipelines.GetVersionOptions{ID: version.ID})
 			Expect(err).To(Succeed())

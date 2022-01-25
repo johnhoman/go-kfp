@@ -60,6 +60,10 @@ func (p *pipelinesApi) getPipelineVersionByName(ctx context.Context, name string
 		Context:         ctx,
 	}, p.authInfo)
 	if err != nil {
+		e, ok := err.(*ps.ListPipelineVersionsDefault)
+		if ok && e.Code() == http.StatusNotFound {
+			return rv, NewNotFound()
+		}
 		return rv, err
 	}
 	if len(versions.GetPayload().Versions) == 1 {
@@ -149,9 +153,9 @@ func (p *pipelinesApi) GetVersion(ctx context.Context, options *GetVersionOption
 		}
 	}
 	version := &PipelineVersion{
-		ID:         out.GetPayload().ID,
-		Name:       out.GetPayload().Name,
-		CreatedAt:  time.Time(out.GetPayload().CreatedAt),
+		ID:        out.GetPayload().ID,
+		Name:      out.GetPayload().Name,
+		CreatedAt: time.Time(out.GetPayload().CreatedAt),
 	}
 	if len(out.GetPayload().ResourceReferences) > 0 {
 		refs := out.GetPayload().ResourceReferences
