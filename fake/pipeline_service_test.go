@@ -20,9 +20,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/johnhoman/go-kfp/fake"
+	httptransport "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/strfmt"
+	"github.com/johnhoman/go-kfp/api/job/client/job_service"
+	jobmodels "github.com/johnhoman/go-kfp/api/job/models"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-openapi/runtime"
 	"github.com/google/uuid"
@@ -69,12 +73,44 @@ func newCowSay(name string) runtime.NamedReadCloser {
 	return reader
 }
 
+func newJob(pipelineId string, versionId string) *jobmodels.APIJob {
+	body := &jobmodels.APIJob{
+		Name:        "whalesay-1m",
+		Description: "Minutely whalesay",
+		PipelineSpec: &jobmodels.APIPipelineSpec{
+			Parameters: nil,
+			PipelineID: pipelineId,
+		},
+		ResourceReferences: []*jobmodels.APIResourceReference{{
+			Key: &jobmodels.APIResourceKey{
+				ID:   versionId,
+				Type: jobmodels.NewAPIResourceType(jobmodels.APIResourceTypePIPELINEVERSION),
+			},
+			Relationship: jobmodels.NewAPIRelationship(jobmodels.APIRelationshipCREATOR),
+		}},
+		Trigger: &jobmodels.APITrigger{
+			CronSchedule: &jobmodels.APICronSchedule{
+				Cron:      "* * * * *",
+				StartTime: strfmt.DateTime(time.Now()),
+				EndTime:   strfmt.DateTime(time.Now().Add(time.Second * 10)),
+			},
+		},
+		NoCatchup:      true,
+		MaxConcurrency: "1",
+		Enabled:        true,
+	}
+	return body
+
+}
+
 type UploadService = up.ClientService
 type Service = ps.ClientService
+type JobService = job_service.ClientService
 
 type PipelineService struct {
 	UploadService
 	Service
+	JobService
 }
 
 var _ = Describe("PipelineService", func() {
@@ -91,12 +127,13 @@ var _ = Describe("PipelineService", func() {
 
 		pipelineIds = make([]string, 0)
 
-		service = fake.NewPipelineService()
-		// transport := httptransport.New("localhost:8888", "", []string{"http"})
-		// service = PipelineService{
-		// 	UploadService: up.New(transport, strfmt.Default),
-		// 	Service: ps.New(transport, strfmt.Default),
-		// }
+		// service = fake.NewPipelineService()
+		transport := httptransport.New("localhost:8888", "", []string{"http"})
+		service = PipelineService{
+			UploadService: up.New(transport, strfmt.Default),
+			Service:       ps.New(transport, strfmt.Default),
+			JobService:    job_service.New(transport, strfmt.Default),
+		}
 		reader = newCowSay(name)
 
 		ctx, cancelFunc = context.WithCancel(context.Background())
@@ -159,6 +196,7 @@ var _ = Describe("PipelineService", func() {
 		}, nil)
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(out).ShouldNot(BeNil())
+		pipelineIds = append(pipelineIds, out.GetPayload().ID)
 
 		_, err = service.DeletePipelineVersion(&ps.DeletePipelineVersionParams{
 			VersionID: out.GetPayload().ID,
@@ -179,6 +217,7 @@ var _ = Describe("PipelineService", func() {
 		}, nil)
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(out).ShouldNot(BeNil())
+		pipelineIds = append(pipelineIds, out.GetPayload().ID)
 
 		reader = newCowSay(name)
 		version, err := service.UploadPipelineVersion(&up.UploadPipelineVersionParams{
@@ -647,36 +686,102 @@ var _ = Describe("PipelineService", func() {
 			Expect(found).To(BeTrue())
 		}
 	})
-	/*
-		table.DescribeTable("", func(filter map[string]interface{}) {
-			raw, err := json.Marshal(filter)
-			Expect(err).ToNot(HaveOccurred())
-			_, err = pipelineService.ListPipelines(&ps.ListPipelinesParams{
-				Filter: stringPtr(string(raw)),
-				ResourceReferenceKeyType: stringPtr(string(models.APIResourceTypeNAMESPACE)),
+	Describe("JobServiceApi", func() {
+		var jobId string
+		var versionPipelineId string
+		AfterEach(func() {
+			out, err := service.DeleteJob(&job_service.DeleteJobParams{
+				ID: jobId,
 				Context: ctx,
 			}, nil)
-			Expect(err).To(HaveOccurred())
-			Expect(err.(*ps.ListPipelinesDefault).Code()).To(Equal(http.StatusBadRequest))
-		}, table.Entry("", map[string]interface{}{
-			"predicate": map[string]interface{}{"op": "IS_SUBSTRING", "key": "name", "string_value": name},
-		}), table.Entry("", map[string]interface{}{
-			"predicates": map[string]interface{}{"op": "IS_SUBSTRING", "key": "name", "string_value": name},
-		}))
-	*/
-	/*
-		DescribeTable("create should fail", func(body *models.APIPipeline, messagePrefix string, code int) {
-			params := &ps.CreatePipelineParams{Body: body, Context: ctx}
-			_, err := service.CreatePipeline(params, nil)
-			Expect(err).Should(HaveOccurred())
-			Expect(err.(*ps.CreatePipelineDefault).Code()).To(Equal(code))
-			Expect(err.(*ps.CreatePipelineDefault).Payload.Error).To(HavePrefix(messagePrefix))
-		},
-			Entry("no pipeline url", &models.APIPipeline{
-				Description:    "[Tutorial] DSL - Control structures",
-				Name:           "[Tutorial] DSL - Control structures",
-				DefaultVersion: &models.APIPipelineVersion{},
-			}, "Invalid input error: Pipeline URL is empty", http.StatusBadRequest),
-		)
-	*/
+			if err != nil {
+				Expect(err.(*job_service.DeleteJobDefault).Code()).Should(Equal(http.StatusNotFound))
+				Expect(out).Should(BeNil())
+			} else {
+				Expect(out).Should(Equal(&job_service.DeleteJobOK{Payload: map[string]interface{}{}}))
+			}
+		})
+		When("A pipeline exists", func() {
+			BeforeEach(func() {
+				out, err := service.UploadPipeline(&up.UploadPipelineParams{
+					Description: stringPtr(description),
+					Name:        stringPtr(name),
+					Uploadfile:  reader,
+					Context:     ctx,
+				}, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(out).ShouldNot(BeNil())
+				pipelineIds = append(pipelineIds, out.Payload.ID)
+				versionPipelineId = out.Payload.ID
+			})
+			When("A job does not exist", func() {
+				It("Creates the job", func() {
+					var buf []byte
+					_, err := reader.Read(buf)
+					Expect(err).ToNot(BeNil())
+					out, err := service.CreateJob(&job_service.CreateJobParams{
+						Context: ctx,
+						Body:    newJob(versionPipelineId, versionPipelineId),
+					}, nil)
+					jobId = out.GetPayload().ID
+					Expect(err).ToNot(HaveOccurred())
+					Expect(out).ToNot(BeNil())
+					Expect(out.GetPayload().PipelineSpec.PipelineName).To(Equal(name))
+					Expect(out.GetPayload().PipelineSpec.PipelineID).To(Equal(versionPipelineId))
+					Expect(out.GetPayload().PipelineSpec.PipelineManifest).To(Equal(string(buf)))
+					Expect(out.GetPayload().Mode).To(BeNil())
+					Expect(out.GetPayload().Enabled).To(BeTrue())
+					Expect(out.GetPayload().ResourceReferences).To(HaveLen(2))
+					Expect(out.GetPayload().NoCatchup).To(BeTrue())
+				})
+			})
+		})
+		When("A pipeline does not exist", func() {
+			BeforeEach(func() {
+				out, err := service.UploadPipeline(&up.UploadPipelineParams{
+					Description: stringPtr(description),
+					Name:        stringPtr(name),
+					Uploadfile:  reader,
+					Context:     ctx,
+				}, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(out).ShouldNot(BeNil())
+				pipelineIds = append(pipelineIds, out.Payload.ID)
+				versionPipelineId = out.Payload.ID
+				It("Should return 404", func() {
+					out, err := service.CreateJob(&job_service.CreateJobParams{
+						Context: ctx,
+						Body:    newJob(uuid.New().String(), out.GetPayload().ID),
+					}, nil)
+					jobId = out.GetPayload().ID
+					Expect(err).Should(HaveOccurred())
+					Expect(err.(*job_service.CreateJobDefault).Code()).Should(Equal(http.StatusNotFound))
+					Expect(out).To(BeNil())
+				})
+			})
+		})
+		When("A pipeline version does not exist", func() {
+			BeforeEach(func() {
+				out, err := service.UploadPipeline(&up.UploadPipelineParams{
+					Description: stringPtr(description),
+					Name:        stringPtr(name),
+					Uploadfile:  reader,
+					Context:     ctx,
+				}, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(out).ShouldNot(BeNil())
+				pipelineIds = append(pipelineIds, out.Payload.ID)
+				versionPipelineId = out.Payload.ID
+			})
+			It("Should return 404", func() {
+				out, err := service.CreateJob(&job_service.CreateJobParams{
+					Context: ctx,
+					Body:    newJob(versionPipelineId, uuid.New().String()),
+				}, nil)
+				Expect(err).Should(HaveOccurred())
+				Expect(err.(*job_service.CreateJobDefault).Code()).Should(Equal(http.StatusNotFound))
+				Expect(out).To(BeNil())
+			})
+		})
+	})
 })

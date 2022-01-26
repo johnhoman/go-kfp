@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-openapi/runtime"
 
+	jobs "github.com/johnhoman/go-kfp/api/job/client/job_service"
 	ps "github.com/johnhoman/go-kfp/api/pipeline/client/pipeline_service"
 	up "github.com/johnhoman/go-kfp/api/pipeline_upload/client/pipeline_upload_service"
 )
@@ -36,6 +37,11 @@ type PipelineService interface {
 
 	UploadPipeline(params *up.UploadPipelineParams, authInfo runtime.ClientAuthInfoWriter, opts ...up.ClientOption) (*up.UploadPipelineOK, error)
 	UploadPipelineVersion(params *up.UploadPipelineVersionParams, authInfo runtime.ClientAuthInfoWriter, opts ...up.ClientOption) (*up.UploadPipelineVersionOK, error)
+
+	CreateJob(params *jobs.CreateJobParams, authInfo runtime.ClientAuthInfoWriter, opts ...jobs.ClientOption) (*jobs.CreateJobOK, error)
+	DeleteJob(params *jobs.DeleteJobParams, authInfo runtime.ClientAuthInfoWriter, opts ...jobs.ClientOption) (*jobs.DeleteJobOK, error)
+	GetJob(params *jobs.GetJobParams, authInfo runtime.ClientAuthInfoWriter, opts ...jobs.ClientOption) (*jobs.GetJobOK, error)
+	ListJobs(params *jobs.ListJobsParams, authInfo runtime.ClientAuthInfoWriter, opts ...jobs.ClientOption) (*jobs.ListJobsOK, error)
 }
 
 type Interface interface {

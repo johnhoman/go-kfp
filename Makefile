@@ -22,6 +22,9 @@ generate: swagger
 	mkdir -p $(shell pwd)/api/pipeline_upload
 	$(SWAGGER) generate client -f https://raw.githubusercontent.com/kubeflow/pipelines/master/backend/api/swagger/pipeline.upload.swagger.json \
 		--target $(shell pwd)/api/pipeline_upload
+	mkdir -p $(shell pwd)/api/job
+	$(SWAGGER) generate client -f https://raw.githubusercontent.com/kubeflow/pipelines/master/backend/api/swagger/job.swagger.json \
+		--target $(shell pwd)/api/job
 	go mod tidy
 
 .PHONY: fmt

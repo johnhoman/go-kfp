@@ -29,12 +29,14 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
-	"github.com/johnhoman/go-kfp/pipelines"
 
+	"github.com/johnhoman/go-kfp/api/job/client/job_service"
+	jobmodels "github.com/johnhoman/go-kfp/api/job/models"
 	ps "github.com/johnhoman/go-kfp/api/pipeline/client/pipeline_service"
 	"github.com/johnhoman/go-kfp/api/pipeline/models"
 	up "github.com/johnhoman/go-kfp/api/pipeline_upload/client/pipeline_upload_service"
 	upmodels "github.com/johnhoman/go-kfp/api/pipeline_upload/models"
+	"github.com/johnhoman/go-kfp/pipelines"
 )
 
 type PagedRequest struct {
@@ -52,6 +54,7 @@ type PagedVersionRequest struct {
 type PipelineService struct {
 	sync.Mutex
 	// map[models.APIPipeline.ID]models.APIPipeline
+	Jobs                 map[string]jobmodels.APIJob
 	Pipelines            map[string]models.APIPipeline
 	PipelineVersions     map[string]map[string]models.APIPipelineVersion
 	PagedRequests        map[string]PagedRequest
@@ -60,6 +63,22 @@ type PipelineService struct {
 
 var internalServerError = fmt.Errorf("\"&{0 [] }\" (*models.APIStatus) is not supported by the TextConsumer, %s",
 	"can be resolved by supporting TextUnmarshaler interface")
+
+func (p *PipelineService) CreateJob(params *job_service.CreateJobParams, authInfo runtime.ClientAuthInfoWriter, opts ...job_service.ClientOption) (*job_service.CreateJobOK, error) {
+	panic("implement me")
+}
+
+func (p *PipelineService) DeleteJob(params *job_service.DeleteJobParams, authInfo runtime.ClientAuthInfoWriter, opts ...job_service.ClientOption) (*job_service.DeleteJobOK, error) {
+	panic("implement me")
+}
+
+func (p *PipelineService) GetJob(params *job_service.GetJobParams, authInfo runtime.ClientAuthInfoWriter, opts ...job_service.ClientOption) (*job_service.GetJobOK, error) {
+	panic("implement me")
+}
+
+func (p *PipelineService) ListJobs(params *job_service.ListJobsParams, authInfo runtime.ClientAuthInfoWriter, opts ...job_service.ClientOption) (*job_service.ListJobsOK, error) {
+	panic("implement me")
+}
 
 func (p *PipelineService) UploadPipeline(params *up.UploadPipelineParams, authInfo runtime.ClientAuthInfoWriter, opts ...up.ClientOption) (*up.UploadPipelineOK, error) {
 	for _, pipeline := range p.Pipelines {
