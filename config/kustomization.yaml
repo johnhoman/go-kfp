@@ -1,0 +1,4 @@
+resources:
+- github.com/kubeflow/pipelines/manifests/kustomize/cluster-scoped-resources?ref=1.7.0
+- github.com/kubeflow/pipelines/manifests/kustomize/env/platform-agnostic-pns?ref=1.7.0
+- service.yaml
