@@ -277,7 +277,7 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(version.PipelineID).To(Equal(pipeline.ID))
 			Expect(version.Name).To(Equal(pipeline.Name))
 			Expect(version.ID).To(Equal(pipeline.ID))
-			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
+			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 1, time.Second))
 
 			version, err = api.CreateVersion(ctx, &pipelines.CreateVersionOptions{
 				Name:        name + "-1",
