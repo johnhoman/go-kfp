@@ -39,6 +39,9 @@ type pipelinesApi struct {
 	authInfo runtime.ClientAuthInfoWriter
 }
 
+// CreateJob starts a scheduled job on Kubeflow. Start and end dates can be specified
+// but if not provided the job will start at the current time and an end time won't
+// be sent to Kubeflow so that the Kubeflow api server can pick a sensible default.
 func (p *pipelinesApi) CreateJob(ctx context.Context, options *CreateJobOptions) (*Job, error) {
 	start := time.Now()
 	if options.StartTime != nil {
@@ -103,6 +106,7 @@ func (p *pipelinesApi) CreateJob(ctx context.Context, options *CreateJobOptions)
 	return job, nil
 }
 
+// DeleteJob removes a pipeline recurring job from Kubeflow
 func (p *pipelinesApi) DeleteJob(ctx context.Context, options *DeleteOptions) error {
 
 	_, err := p.service.DeleteJob(&job_service.DeleteJobParams{ID: options.ID, Context: ctx}, p.authInfo)
@@ -150,6 +154,8 @@ func (p *pipelinesApi) getPipelineVersionByName(ctx context.Context, name string
 	return rv, NewNotFound()
 }
 
+// CreateVersion creates a new version of the specified pipeline using
+// the provided workflow spec.
 func (p *pipelinesApi) CreateVersion(ctx context.Context, options *CreateVersionOptions) (*PipelineVersion, error) {
 	rv := &PipelineVersion{}
 
