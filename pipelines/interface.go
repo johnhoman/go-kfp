@@ -53,4 +53,7 @@ type Interface interface {
 	GetVersion(ctx context.Context, options *GetVersionOptions) (*PipelineVersion, error)
 	CreateVersion(ctx context.Context, options *CreateVersionOptions) (*PipelineVersion, error)
 	DeleteVersion(ctx context.Context, options *DeleteOptions) error
+
+	CreateJob(ctx context.Context, options *CreateJobOptions) (*Job, error)
+	DeleteJob(ctx context.Context, options *DeleteOptions) error
 }

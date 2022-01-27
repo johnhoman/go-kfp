@@ -18,11 +18,15 @@ package pipelines_test
 
 import (
 	"context"
+	"fmt"
+	httptransport "github.com/go-openapi/runtime/client"
+	"github.com/johnhoman/go-kfp/api/job/client/job_service"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/johnhoman/go-kfp/fake"
 	"github.com/johnhoman/go-kfp/pipelines"
 
 	. "github.com/onsi/ginkgo"
@@ -76,8 +80,15 @@ var _ = Describe("PipelinesApi", func() {
 	var description string
 	BeforeEach(func() {
 		name = "testcase-" + uuid.New().String()[:8]
-		description = strings.ToTitle(strings.Join(strings.Split(name, "-"), " "))
-		api = pipelines.New(fake.NewPipelineService(), nil)
+		description = strings.Title(strings.Join(strings.Split(name, "-"), " "))
+		apiServer, ok := os.LookupEnv("GO_KFP_API_SERVER_ADDRESS")
+		if ok {
+			if strings.HasPrefix(apiServer, "http://") {
+				apiServer = strings.TrimPrefix(apiServer, "http://")
+			}
+			transport := httptransport.New(apiServer, "", []string{"http"})
+			api = pipelines.New(pipelines.NewPipelineService(transport), nil)
+		}
 		ctx, cancelFunc = context.WithCancel(context.Background())
 	})
 	AfterEach(func() {
@@ -333,4 +344,45 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(pipelines.IsNotFound(err)).To(BeTrue())
 		})
 	})
+	Describe("JobsApi", func() {
+		var job *pipelines.Job
+		var versionId string
+		BeforeEach(func() {
+			var err error
+			pipeline, err = api.Create(ctx, &pipelines.CreateOptions{
+				Name: name,
+				Description: description,
+				Workflow: newWhaleSay(),
+			})
+			Expect(err).ToNot(HaveOccurred())
+			versionId = pipeline.ID
+			job, err = api.CreateJob(ctx, &pipelines.CreateJobOptions{
+				Name: name + "-1m-",
+				Description: fmt.Sprintf("Run %s every 1m", name),
+				PipelineID: pipeline.ID,
+				VersionID: versionId,
+				CronSchedule: "* * * * *",
+				StartTime: timePointer(time.Now()),
+				EndTime: timePointer(time.Now().Add(time.Second * 10)),
+				MaxConcurrency: 2,
+				Enabled: true,
+			})
+			Expect(job).ToNot(BeNil())
+			Expect(err).ToNot(HaveOccurred())
+		})
+		AfterEach(func() {
+			err := api.DeleteJob(ctx, &pipelines.DeleteOptions{ID: job.ID})
+			if err != nil {
+				Expect(err.(*job_service.DeleteJobDefault).Code()).Should(Equal(http.StatusNotFound))
+			}
+		})
+		It("Creates a Job", func() {
+			Expect(job.Enabled).To(BeTrue())
+			Expect(job.Name).To(Equal(name + "-1m-"))
+		})
+	})
 })
+
+func timePointer(t time.Time) *time.Time {
+	return &t
+}

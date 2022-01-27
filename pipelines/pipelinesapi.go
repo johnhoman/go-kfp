@@ -20,7 +20,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/go-openapi/strfmt"
+	"github.com/johnhoman/go-kfp/api/job/client/job_service"
+	jobmodels "github.com/johnhoman/go-kfp/api/job/models"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-openapi/runtime"
@@ -33,6 +37,79 @@ import (
 type pipelinesApi struct {
 	service  PipelineService
 	authInfo runtime.ClientAuthInfoWriter
+}
+
+func (p *pipelinesApi) CreateJob(ctx context.Context, options *CreateJobOptions) (*Job, error) {
+	start := time.Now()
+	if options.StartTime != nil {
+		start = *options.StartTime
+	}
+
+	body := &jobmodels.APIJob{
+		Name: options.Name,
+		Description: options.Description,
+		PipelineSpec: &jobmodels.APIPipelineSpec{
+			Parameters: nil,
+			PipelineID: options.PipelineID,
+		},
+		ResourceReferences: []*jobmodels.APIResourceReference{{
+			Key: &jobmodels.APIResourceKey{
+				ID: options.VersionID,
+				Type: jobmodels.NewAPIResourceType(jobmodels.APIResourceTypePIPELINEVERSION),
+			},
+			Relationship: jobmodels.NewAPIRelationship(jobmodels.APIRelationshipCREATOR),
+		}},
+		Trigger: &jobmodels.APITrigger{
+			CronSchedule: &jobmodels.APICronSchedule{
+				Cron: options.CronSchedule,
+				StartTime: strfmt.DateTime(start),
+			},
+		},
+		NoCatchup: true,
+		MaxConcurrency: strconv.Itoa(options.MaxConcurrency),
+		Enabled: options.Enabled,
+	}
+	if options.EndTime != nil {
+		body.Trigger.CronSchedule.EndTime = strfmt.DateTime(*options.EndTime)
+	}
+	out, err := p.service.CreateJob(&job_service.CreateJobParams{Body: body, Context: ctx}, p.authInfo)
+	if err != nil {
+		return &Job{}, err
+	}
+	job := &Job{}
+	job.Enabled = out.GetPayload().Enabled
+	job.CronSchedule = out.GetPayload().Trigger.CronSchedule.Cron
+	job.MaxConcurrency, err = strconv.Atoi(out.GetPayload().MaxConcurrency)
+	if err != nil {
+		return &Job{}, err
+	}
+	job.ID = out.GetPayload().ID
+	job.Name = out.GetPayload().Name
+	job.PipelineID = out.GetPayload().PipelineSpec.PipelineID
+	job.CreatedAt = time.Time(out.GetPayload().CreatedAt)
+	if len(out.GetPayload().ResourceReferences) > 0 {
+		for _, ref := range out.GetPayload().ResourceReferences {
+			if *ref.Key.Type == jobmodels.APIResourceTypeEXPERIMENT {
+				job.ExperimentID = ref.Key.ID
+			}
+			if *ref.Key.Type == jobmodels.APIResourceTypePIPELINEVERSION {
+				job.VersionID = ref.Key.ID
+			}
+		}
+	}
+	job.Description = out.GetPayload().Description
+	job.StartTime = time.Time(out.GetPayload().Trigger.CronSchedule.StartTime)
+	job.EndTime = time.Time(out.GetPayload().Trigger.CronSchedule.EndTime)
+	return job, nil
+}
+
+func (p *pipelinesApi) DeleteJob(ctx context.Context, options *DeleteOptions) error {
+
+	_, err := p.service.DeleteJob(&job_service.DeleteJobParams{ID: options.ID, Context: ctx}, p.authInfo)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *pipelinesApi) getPipelineVersionByName(ctx context.Context, name string, pipelineId string) (*models.APIPipelineVersion, error) {

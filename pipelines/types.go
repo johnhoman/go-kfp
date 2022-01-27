@@ -70,3 +70,36 @@ type PipelineVersion struct {
 	CreatedAt  time.Time
 	PipelineID string
 }
+
+type CreateJobOptions struct {
+	Name string
+	Description string
+	PipelineID string
+	VersionID string
+	ExperimentID string
+	CronSchedule string
+	StartTime *time.Time
+	EndTime *time.Time
+	MaxConcurrency int
+	Enabled bool
+}
+
+type GetJobOption struct {
+	Name string
+	ID string
+}
+
+type Job struct {
+	ID string
+	Name string
+	Description string
+	PipelineID string
+	VersionID string
+	ExperimentID string
+	CronSchedule string
+	StartTime time.Time
+	EndTime time.Time
+	MaxConcurrency int
+	Enabled bool
+	CreatedAt time.Time
+}
