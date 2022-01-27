@@ -24,7 +24,9 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/johnhoman/go-kfp/api/job/client/job_service"
 	jobmodels "github.com/johnhoman/go-kfp/api/job/models"
+	"github.com/johnhoman/go-kfp/fake"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -107,6 +109,22 @@ type UploadService = up.ClientService
 type Service = ps.ClientService
 type JobService = job_service.ClientService
 
+func pipelineService() pipelines.PipelineService {
+	apiServer, ok := os.LookupEnv("GO_KFP_API_SERVER_ADDRESS")
+	if ok {
+		if strings.HasPrefix(apiServer, "http://") {
+			apiServer = strings.TrimPrefix(apiServer, "http://")
+		}
+		transport := httptransport.New(apiServer, "", []string{"http"})
+		return PipelineService{
+			UploadService: up.New(transport, strfmt.Default),
+			Service:       ps.New(transport, strfmt.Default),
+			JobService:    job_service.New(transport, strfmt.Default),
+		}
+	}
+	return fake.NewPipelineService()
+}
+
 type PipelineService struct {
 	UploadService
 	Service
@@ -127,13 +145,7 @@ var _ = Describe("PipelineService", func() {
 
 		pipelineIds = make([]string, 0)
 
-		// service = fake.NewPipelineService()
-		transport := httptransport.New("localhost:8888", "", []string{"http"})
-		service = PipelineService{
-			UploadService: up.New(transport, strfmt.Default),
-			Service:       ps.New(transport, strfmt.Default),
-			JobService:    job_service.New(transport, strfmt.Default),
-		}
+		service = pipelineService()
 		reader = newCowSay(name)
 
 		ctx, cancelFunc = context.WithCancel(context.Background())
@@ -733,6 +745,20 @@ var _ = Describe("PipelineService", func() {
 					Expect(out.GetPayload().Enabled).To(BeTrue())
 					Expect(out.GetPayload().ResourceReferences).To(HaveLen(2))
 					Expect(out.GetPayload().NoCatchup).To(BeTrue())
+				})
+			})
+			When("A job exists", func() {
+				BeforeEach(func() {
+					out, err := service.CreateJob(&job_service.CreateJobParams{
+						Context: ctx,
+						Body:    newJob(versionPipelineId, versionPipelineId),
+					}, nil)
+					jobId = out.GetPayload().ID
+					Expect(err).ToNot(HaveOccurred())
+					Expect(out).ToNot(BeNil())
+				})
+				It("Can list a single job", func() {
+
 				})
 			})
 		})
