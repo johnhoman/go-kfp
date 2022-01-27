@@ -14,4 +14,7 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
     - run: go mod tidy && git diff --check
-    - run: go test ./...
+    - run: minikube start
+    - run: kubectl apply -k config/
+    - run: kubectl wait --for=condition=ready pod -l app=ml-pipeline -n kubeflow --timeout=10m
+    - run: GO_KFP_API_SERVER_ADDRESS=$(minikube service kfp --url -n kubeflow | sed 's/http:\/\///g') go test ./...
