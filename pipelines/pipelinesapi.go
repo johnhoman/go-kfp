@@ -21,17 +21,18 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/go-openapi/strfmt"
-	"github.com/johnhoman/go-kfp/api/job/client/job_service"
-	jobmodels "github.com/johnhoman/go-kfp/api/job/models"
+	"github.com/johnhoman/go-kfp/api/pipeline_upload/models"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/go-openapi/runtime"
 
-	ps "github.com/johnhoman/go-kfp/api/pipeline/client/pipeline_service"
-	"github.com/johnhoman/go-kfp/api/pipeline/models"
-	up "github.com/johnhoman/go-kfp/api/pipeline_upload/client/pipeline_upload_service"
+	"github.com/johnhoman/go-kfp/api/job/client/job_service"
+	jobmodels "github.com/johnhoman/go-kfp/api/job/models"
+	"github.com/johnhoman/go-kfp/api/pipeline/client/pipeline_service"
+	pipelinemodels "github.com/johnhoman/go-kfp/api/pipeline/models"
+	"github.com/johnhoman/go-kfp/api/pipeline_upload/client/pipeline_upload_service"
 )
 
 type pipelinesApi struct {
@@ -79,6 +80,24 @@ func (p *pipelinesApi) CreateJob(ctx context.Context, options *CreateJobOptions)
 	if err != nil {
 		return &Job{}, err
 	}
+	return p.GetJob(ctx, &GetOptions{ID: out.GetPayload().ID})
+}
+
+func (p *pipelinesApi) GetJob(ctx context.Context, options *GetOptions) (*Job, error) {
+
+	if len(options.ID) == 0  {
+		// Get the ID
+
+		// in := &job_service.ListJobsParams{
+		// 	Context: ctx,
+		// }
+	}
+
+	in := &job_service.GetJobParams{ID: options.ID, Context: ctx}
+	out, err := p.service.GetJob(in, p.authInfo)
+	if err != nil {
+		return &Job{}, nil
+	}
 	job := &Job{}
 	job.Enabled = out.GetPayload().Enabled
 	job.CronSchedule = out.GetPayload().Trigger.CronSchedule.Cron
@@ -108,7 +127,6 @@ func (p *pipelinesApi) CreateJob(ctx context.Context, options *CreateJobOptions)
 
 // DeleteJob removes a pipeline recurring job from Kubeflow
 func (p *pipelinesApi) DeleteJob(ctx context.Context, options *DeleteOptions) error {
-
 	_, err := p.service.DeleteJob(&job_service.DeleteJobParams{ID: options.ID, Context: ctx}, p.authInfo)
 	if err != nil {
 		return err
@@ -116,8 +134,8 @@ func (p *pipelinesApi) DeleteJob(ctx context.Context, options *DeleteOptions) er
 	return nil
 }
 
-func (p *pipelinesApi) getPipelineVersionByName(ctx context.Context, name string, pipelineId string) (*models.APIPipelineVersion, error) {
-	rv := &models.APIPipelineVersion{}
+func (p *pipelinesApi) getPipelineVersionByName(ctx context.Context, name string, pipelineId string) (*pipelinemodels.APIPipelineVersion, error) {
+	rv := &pipelinemodels.APIPipelineVersion{}
 	predicates := map[string]interface{}{
 		"predicates": []interface{}{
 			map[string]interface{}{
@@ -133,7 +151,7 @@ func (p *pipelinesApi) getPipelineVersionByName(ctx context.Context, name string
 	}
 
 	// Make sure pipeline version name is unique
-	versions, err := p.service.ListPipelineVersions(&ps.ListPipelineVersionsParams{
+	versions, err := p.service.ListPipelineVersions(&pipeline_service.ListPipelineVersionsParams{
 		Filter:          stringPointer(string(raw)),
 		PageSize:        int32Pointer(1),
 		ResourceKeyType: stringPointer(string(models.APIResourceTypePIPELINE)),
@@ -141,7 +159,7 @@ func (p *pipelinesApi) getPipelineVersionByName(ctx context.Context, name string
 		Context:         ctx,
 	}, p.authInfo)
 	if err != nil {
-		e, ok := err.(*ps.ListPipelineVersionsDefault)
+		e, ok := err.(*pipeline_service.ListPipelineVersionsDefault)
 		if ok && e.Code() == http.StatusNotFound {
 			return rv, NewNotFound()
 		}
@@ -184,7 +202,7 @@ func (p *pipelinesApi) CreateVersion(ctx context.Context, options *CreateVersion
 		}
 	}()
 
-	version, err := p.service.UploadPipelineVersion(&up.UploadPipelineVersionParams{
+	version, err := p.service.UploadPipelineVersion(&pipeline_upload_service.UploadPipelineVersionParams{
 		Description: stringPointer(options.Description),
 		Name:        stringPointer(options.Name),
 		Pipelineid:  stringPointer(options.PipelineID),
@@ -202,7 +220,7 @@ func (p *pipelinesApi) DeleteVersion(ctx context.Context, options *DeleteOptions
 	if err != nil {
 		return err
 	}
-	_, err = p.service.DeletePipelineVersion(&ps.DeletePipelineVersionParams{
+	_, err = p.service.DeletePipelineVersion(&pipeline_service.DeletePipelineVersionParams{
 		VersionID: options.ID,
 		Context:   ctx,
 	}, p.authInfo)
@@ -223,12 +241,12 @@ func (p *pipelinesApi) GetVersion(ctx context.Context, options *GetVersionOption
 		options = &GetVersionOptions{ID: out.ID}
 	}
 
-	out, err := p.service.GetPipelineVersion(&ps.GetPipelineVersionParams{
+	out, err := p.service.GetPipelineVersion(&pipeline_service.GetPipelineVersionParams{
 		VersionID: options.ID,
 		Context:   ctx,
 	}, p.authInfo)
 	if err != nil {
-		e, ok := err.(*ps.GetPipelineVersionDefault)
+		e, ok := err.(*pipeline_service.GetPipelineVersionDefault)
 		if ok {
 			if e.Code() == http.StatusNotFound {
 				return &PipelineVersion{}, NewNotFound()
@@ -247,7 +265,7 @@ func (p *pipelinesApi) GetVersion(ctx context.Context, options *GetVersionOption
 	return version, nil
 }
 
-func (p *pipelinesApi) getPipelineByName(ctx context.Context, name string) (*models.APIPipeline, error) {
+func (p *pipelinesApi) getPipelineByName(ctx context.Context, name string) (*pipelinemodels.APIPipeline, error) {
 	predicates := map[string]interface{}{
 		"predicates": []interface{}{
 			map[string]interface{}{
@@ -260,24 +278,24 @@ func (p *pipelinesApi) getPipelineByName(ctx context.Context, name string) (*mod
 
 	raw, err := json.Marshal(predicates)
 	if err != nil {
-		return &models.APIPipeline{}, err
+		return &pipelinemodels.APIPipeline{}, err
 	}
 
 	// How do I get the ID other than listing?
-	listOut, err := p.service.ListPipelines(&ps.ListPipelinesParams{
+	listOut, err := p.service.ListPipelines(&pipeline_service.ListPipelinesParams{
 		Context:  ctx,
 		PageSize: int32Pointer(1),
 		Filter:   stringPointer(string(raw)),
 	}, p.authInfo)
 	if err != nil {
-		e, ok := err.(*ps.ListPipelineVersionsDefault)
+		e, ok := err.(*pipeline_service.ListPipelineVersionsDefault)
 		if ok && e.Code() == http.StatusNotFound {
-			return &models.APIPipeline{}, NewNotFound()
+			return &pipelinemodels.APIPipeline{}, NewNotFound()
 		}
-		return &models.APIPipeline{}, err
+		return &pipelinemodels.APIPipeline{}, err
 	}
 	if listOut.GetPayload().TotalSize < 1 {
-		return &models.APIPipeline{}, NewNotFound()
+		return &pipelinemodels.APIPipeline{}, NewNotFound()
 	}
 	return listOut.GetPayload().Pipelines[0], nil
 }
@@ -303,7 +321,7 @@ func (p *pipelinesApi) Create(ctx context.Context, options *CreateOptions) (*Pip
 			panic("do i need to close this?" + err.Error())
 		}
 	}()
-	params := &up.UploadPipelineParams{
+	params := &pipeline_upload_service.UploadPipelineParams{
 		Description: stringPointer(options.Description),
 		Name:        stringPointer(options.Name),
 		Uploadfile:  reader,
@@ -324,16 +342,16 @@ func (p *pipelinesApi) Create(ctx context.Context, options *CreateOptions) (*Pip
 
 func (p *pipelinesApi) Get(ctx context.Context, options *GetOptions) (*Pipeline, error) {
 
-	pl := &models.APIPipeline{}
+	pl := &pipelinemodels.APIPipeline{}
 	rv := &Pipeline{}
 
 	if options.ID != "" {
-		out, err := p.service.GetPipeline(&ps.GetPipelineParams{
+		out, err := p.service.GetPipeline(&pipeline_service.GetPipelineParams{
 			Context: ctx,
 			ID:      options.ID,
 		}, nil)
 		if err != nil {
-			e, ok := err.(*ps.GetPipelineDefault)
+			e, ok := err.(*pipeline_service.GetPipelineDefault)
 			if ok {
 				if e.Code() == http.StatusNotFound {
 					return &Pipeline{}, NewNotFound()
@@ -347,7 +365,7 @@ func (p *pipelinesApi) Get(ctx context.Context, options *GetOptions) (*Pipeline,
 		if err != nil {
 			return rv, err
 		}
-		model, err := p.service.GetPipeline(&ps.GetPipelineParams{
+		model, err := p.service.GetPipeline(&pipeline_service.GetPipelineParams{
 			Context: ctx,
 			ID:      out.ID,
 		}, nil)
@@ -370,11 +388,11 @@ func (p *pipelinesApi) Get(ctx context.Context, options *GetOptions) (*Pipeline,
 
 func (p *pipelinesApi) Update(ctx context.Context, options *UpdateOptions) (*Pipeline, error) {
 	rv := &Pipeline{}
-	if _, err := p.service.GetPipelineVersion(&ps.GetPipelineVersionParams{
+	if _, err := p.service.GetPipelineVersion(&pipeline_service.GetPipelineVersionParams{
 		Context:   ctx,
 		VersionID: options.DefaultVersionID,
 	}, p.authInfo); err != nil {
-		e, ok := err.(*ps.GetPipelineVersionDefault)
+		e, ok := err.(*pipeline_service.GetPipelineVersionDefault)
 		if ok {
 			if e.Code() == http.StatusNotFound {
 				return rv, NewNotFound()
@@ -383,11 +401,11 @@ func (p *pipelinesApi) Update(ctx context.Context, options *UpdateOptions) (*Pip
 		return rv, err
 	}
 
-	if _, err := p.service.GetPipeline(&ps.GetPipelineParams{
+	if _, err := p.service.GetPipeline(&pipeline_service.GetPipelineParams{
 		ID:      options.ID,
 		Context: ctx,
 	}, p.authInfo); err != nil {
-		if e, ok := err.(*ps.GetPipelineDefault); ok {
+		if e, ok := err.(*pipeline_service.GetPipelineDefault); ok {
 			if e.Code() == http.StatusNotFound {
 				return rv, NewNotFound()
 			}
@@ -395,7 +413,7 @@ func (p *pipelinesApi) Update(ctx context.Context, options *UpdateOptions) (*Pip
 		return rv, err
 	}
 
-	_, err := p.service.UpdatePipelineDefaultVersion(&ps.UpdatePipelineDefaultVersionParams{
+	_, err := p.service.UpdatePipelineDefaultVersion(&pipeline_service.UpdatePipelineDefaultVersionParams{
 		PipelineID: options.ID,
 		VersionID:  options.DefaultVersionID,
 		Context:    ctx,
@@ -409,10 +427,10 @@ func (p *pipelinesApi) Update(ctx context.Context, options *UpdateOptions) (*Pip
 
 func (p *pipelinesApi) Delete(ctx context.Context, options *DeleteOptions) error {
 	_, err := p.service.DeletePipeline(
-		&ps.DeletePipelineParams{Context: ctx, ID: options.ID},
+		&pipeline_service.DeletePipelineParams{Context: ctx, ID: options.ID},
 		p.authInfo,
 	)
-	if def, ok := err.(*ps.DeletePipelineDefault); ok {
+	if def, ok := err.(*pipeline_service.DeletePipelineDefault); ok {
 		if def.Code() == http.StatusNotFound {
 			return NewNotFound()
 		}
