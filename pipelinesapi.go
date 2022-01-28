@@ -265,7 +265,11 @@ func (p *pipelinesApi) DeleteVersion(ctx context.Context, options *DeleteOptions
 
 func (p *pipelinesApi) GetVersion(ctx context.Context, options *GetVersionOptions) (*PipelineVersion, error) {
 	rv := &PipelineVersion{}
+
 	if len(options.ID) == 0 {
+		if len(options.PipelineID) == 0 || len(options.Name) == 0 {
+			return rv, fmt.Errorf("must specify either version Id or both of version name and pipeline ID")
+		}
 		out, err := p.getPipelineVersionByName(ctx, options.Name, options.PipelineID)
 		if err != nil {
 			return rv, err
@@ -281,9 +285,10 @@ func (p *pipelinesApi) GetVersion(ctx context.Context, options *GetVersionOption
 		e, ok := err.(*pipeline_service.GetPipelineVersionDefault)
 		if ok {
 			if e.Code() == http.StatusNotFound {
-				return &PipelineVersion{}, NewNotFound()
+				return rv, NewNotFound()
 			}
 		}
+		return rv, err
 	}
 	version := &PipelineVersion{
 		ID:        out.GetPayload().ID,
