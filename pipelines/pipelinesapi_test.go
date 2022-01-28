@@ -277,6 +277,7 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(version.PipelineID).To(Equal(pipeline.ID))
 			Expect(version.Name).To(Equal(pipeline.Name))
 			Expect(version.ID).To(Equal(pipeline.ID))
+			// This test is very flaky
 			Expect(time.Now().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
 
 			version, err = api.CreateVersion(ctx, &pipelines.CreateVersionOptions{
@@ -289,6 +290,7 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(err).To(Succeed())
 			Expect(version.ID).ToNot(Equal(version.PipelineID))
 			Expect(version.PipelineID).To(Equal(pipeline.ID))
+			// This test is very flaky
 			Expect(time.Now().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
 
 		})

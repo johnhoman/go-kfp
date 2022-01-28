@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/go-openapi/strfmt"
 	"github.com/johnhoman/go-kfp/api/pipeline_upload/models"
 	"net/http"
@@ -87,10 +88,41 @@ func (p *pipelinesApi) GetJob(ctx context.Context, options *GetOptions) (*Job, e
 
 	if len(options.ID) == 0  {
 		// Get the ID
+		if len(options.Name) == 0 {
+			return &Job{}, fmt.Errorf("must specify either name or ID")
+		}
 
-		// in := &job_service.ListJobsParams{
-		// 	Context: ctx,
-		// }
+		filter := map[string]interface{}{
+			"predicates": []interface{}{
+				map[string]interface{}{
+					"key": "name",
+					"op": "EQUALS",
+					"string_value": options.Name,
+				},
+			},
+		}
+		raw, err := json.Marshal(filter)
+		if err != nil {
+			return &Job{}, err
+		}
+		in := &job_service.ListJobsParams{
+			Context: ctx,
+			Filter: stringPointer(string(raw)),
+			PageSize: int32Pointer(1),
+		}
+		out, err := p.service.ListJobs(in, p.authInfo)
+		if err != nil {
+			e, ok := err.(*job_service.ListJobsDefault)
+			if ok && e.Code() == http.StatusNotFound {
+				return &Job{}, NewNotFound()
+			}
+			return &Job{}, err
+		}
+		if out.GetPayload().TotalSize < 1 {
+			return &Job{}, NewNotFound()
+		}
+		job := out.GetPayload().Jobs[0]
+		options = &GetOptions{ID: job.ID}
 	}
 
 	in := &job_service.GetJobParams{ID: options.ID, Context: ctx}
