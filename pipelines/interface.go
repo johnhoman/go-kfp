@@ -55,5 +55,6 @@ type Interface interface {
 	DeleteVersion(ctx context.Context, options *DeleteOptions) error
 
 	CreateJob(ctx context.Context, options *CreateJobOptions) (*Job, error)
+	GetJob(ctx context.Context, options *GetOptions) (*Job, error)
 	DeleteJob(ctx context.Context, options *DeleteOptions) error
 }

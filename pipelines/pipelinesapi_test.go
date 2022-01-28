@@ -277,7 +277,7 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(version.PipelineID).To(Equal(pipeline.ID))
 			Expect(version.Name).To(Equal(pipeline.Name))
 			Expect(version.ID).To(Equal(pipeline.ID))
-			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 1, time.Second))
+			Expect(time.Now().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
 
 			version, err = api.CreateVersion(ctx, &pipelines.CreateVersionOptions{
 				Name:        name + "-1",
@@ -289,7 +289,7 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(err).To(Succeed())
 			Expect(version.ID).ToNot(Equal(version.PipelineID))
 			Expect(version.PipelineID).To(Equal(pipeline.ID))
-			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
+			Expect(time.Now().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
 
 		})
 		It("Should get the version by name", func() {
@@ -379,6 +379,12 @@ var _ = Describe("PipelinesApi", func() {
 		It("Creates a Job", func() {
 			Expect(job.Enabled).To(BeTrue())
 			Expect(job.Name).To(Equal(name + "-1m-"))
+		})
+		It("Can get a job by name", func() {
+			j, err := api.GetJob(ctx, &pipelines.GetOptions{Name: name + "-1m-"})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(j).ToNot(BeNil())
+			Expect(j.ID).To(Equal(job.ID))
 		})
 	})
 })
