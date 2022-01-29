@@ -389,6 +389,57 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(j.ID).To(Equal(job.ID))
 		})
 	})
+	Describe("NamespacedClient", func() {
+		var job *kfp.Job
+		var versionId string
+		var namespace string
+		BeforeEach(func() {
+			namespace = "namespace-" + uuid.New().String()[:8]
+			api = kfp.NewNamespaced(api, namespace)
+			var err error
+			pipeline, err = api.Create(ctx, &kfp.CreateOptions{
+				Name:        name,
+				Description: description,
+				Workflow:    newWhaleSay(),
+			})
+			Expect(err).ToNot(HaveOccurred())
+			versionId = pipeline.ID
+			job, err = api.CreateJob(ctx, &kfp.CreateJobOptions{
+				Name:           name + "-1m-",
+				Description:    fmt.Sprintf("Run %s every 1m", name),
+				PipelineID:     pipeline.ID,
+				VersionID:      versionId,
+				CronSchedule:   "* * * * *",
+				StartTime:      timePointer(time.Now()),
+				EndTime:        timePointer(time.Now().Add(time.Second * 10)),
+				MaxConcurrency: 2,
+				Enabled:        true,
+			})
+			Expect(job).ToNot(BeNil())
+			Expect(err).ToNot(HaveOccurred())
+		})
+		AfterEach(func() {
+			err := api.DeleteJob(ctx, &kfp.DeleteOptions{ID: job.ID})
+			if err != nil {
+				Expect(err.(*job_service.DeleteJobDefault).Code()).Should(Equal(http.StatusNotFound))
+			}
+		})
+		It("Can read a pipeline", func() {
+			p, err := api.Get(ctx, &kfp.GetOptions{Name: name})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(p).ToNot(BeNil())
+		})
+		It("Can read a pipeline version", func() {
+			p, err := api.GetVersion(ctx, &kfp.GetVersionOptions{ID: versionId})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(p).ToNot(BeNil())
+		})
+		It("Can read a job", func() {
+			p, err := api.GetJob(ctx, &kfp.GetOptions{ID: job.ID})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(p).ToNot(BeNil())
+		})
+	})
 })
 
 func timePointer(t time.Time) *time.Time {
