@@ -128,7 +128,7 @@ func (p *pipelinesApi) GetJob(ctx context.Context, options *GetOptions) (*Job, e
 	in := &job_service.GetJobParams{ID: options.ID, Context: ctx}
 	out, err := p.service.GetJob(in, p.authInfo)
 	if err != nil {
-		return &Job{}, nil
+		return &Job{}, err
 	}
 	job := &Job{}
 	job.Enabled = out.GetPayload().Enabled
