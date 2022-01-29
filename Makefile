@@ -25,9 +25,6 @@ generate: swagger
 	mkdir -p $(shell pwd)/api/job
 	$(SWAGGER) generate client -f https://raw.githubusercontent.com/kubeflow/pipelines/master/backend/api/swagger/job.swagger.json \
 		--target $(shell pwd)/api/job
-	mkdir -p $(shell pwd)/api/filter
-	$(SWAGGER) generate model -f https://raw.githubusercontent.com/kubeflow/pipelines/master/backend/api/swagger/filter.swagger.json \
-		--target $(shell pwd)/api/filter
 	go mod tidy
 
 .PHONY: fmt
@@ -40,7 +37,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: generate fmt vet
-	go test ./... -coverprofile cover.out
+	GO_KFP_API_SERVER_ADDRESS=$(shell minikube service kfp --url -n kubeflow | sed 's/http:\/\///g') go test ./... -coverprofile cover.out
 
 ifndef ignore-not-found
   ignore-not-found = false
