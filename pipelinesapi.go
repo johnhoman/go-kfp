@@ -128,6 +128,10 @@ func (p *pipelinesApi) GetJob(ctx context.Context, options *GetOptions) (*Job, e
 	in := &job_service.GetJobParams{ID: options.ID, Context: ctx}
 	out, err := p.service.GetJob(in, p.authInfo)
 	if err != nil {
+		e, ok := err.(*job_service.GetJobDefault)
+		if ok && e.Code() == http.StatusNotFound {
+			return &Job{}, NewNotFound()
+		}
 		return &Job{}, err
 	}
 	job := &Job{}
