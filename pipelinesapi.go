@@ -51,7 +51,7 @@ func (p *pipelinesApi) CreateJob(ctx context.Context, options *CreateJobOptions)
 	}
 
 	body := &jobmodels.APIJob{
-		Name: options.Name,
+		Name:        options.Name,
 		Description: options.Description,
 		PipelineSpec: &jobmodels.APIPipelineSpec{
 			Parameters: nil,
@@ -59,20 +59,20 @@ func (p *pipelinesApi) CreateJob(ctx context.Context, options *CreateJobOptions)
 		},
 		ResourceReferences: []*jobmodels.APIResourceReference{{
 			Key: &jobmodels.APIResourceKey{
-				ID: options.VersionID,
+				ID:   options.VersionID,
 				Type: jobmodels.NewAPIResourceType(jobmodels.APIResourceTypePIPELINEVERSION),
 			},
 			Relationship: jobmodels.NewAPIRelationship(jobmodels.APIRelationshipCREATOR),
 		}},
 		Trigger: &jobmodels.APITrigger{
 			CronSchedule: &jobmodels.APICronSchedule{
-				Cron: options.CronSchedule,
+				Cron:      options.CronSchedule,
 				StartTime: strfmt.DateTime(start),
 			},
 		},
-		NoCatchup: true,
+		NoCatchup:      true,
 		MaxConcurrency: strconv.Itoa(options.MaxConcurrency),
-		Enabled: options.Enabled,
+		Enabled:        options.Enabled,
 	}
 	if options.EndTime != nil {
 		body.Trigger.CronSchedule.EndTime = strfmt.DateTime(*options.EndTime)
@@ -86,7 +86,7 @@ func (p *pipelinesApi) CreateJob(ctx context.Context, options *CreateJobOptions)
 
 func (p *pipelinesApi) GetJob(ctx context.Context, options *GetOptions) (*Job, error) {
 
-	if len(options.ID) == 0  {
+	if len(options.ID) == 0 {
 		// Get the ID
 		if len(options.Name) == 0 {
 			return &Job{}, fmt.Errorf("must specify either name or ID")
@@ -95,8 +95,8 @@ func (p *pipelinesApi) GetJob(ctx context.Context, options *GetOptions) (*Job, e
 		filter := map[string]interface{}{
 			"predicates": []interface{}{
 				map[string]interface{}{
-					"key": "name",
-					"op": "EQUALS",
+					"key":          "name",
+					"op":           "EQUALS",
 					"string_value": options.Name,
 				},
 			},
@@ -106,8 +106,8 @@ func (p *pipelinesApi) GetJob(ctx context.Context, options *GetOptions) (*Job, e
 			return &Job{}, err
 		}
 		in := &job_service.ListJobsParams{
-			Context: ctx,
-			Filter: stringPointer(string(raw)),
+			Context:  ctx,
+			Filter:   stringPointer(string(raw)),
 			PageSize: int32Pointer(1),
 		}
 		out, err := p.service.ListJobs(in, p.authInfo)
@@ -479,7 +479,115 @@ func New(service PipelineService, authInfo runtime.ClientAuthInfoWriter) *pipeli
 	return &pipelinesApi{service: service, authInfo: authInfo}
 }
 
+type namespacedClient struct {
+	client    Interface
+	namespace string
+}
+
+func (n *namespacedClient) Create(ctx context.Context, options *CreateOptions) (*Pipeline, error) {
+	opts := &CreateOptions{}
+	*opts = *options
+	opts.Name = n.namespace + "-" + options.Name
+	pipeline, err := n.client.Create(ctx, opts)
+	if err != nil {
+		return &Pipeline{}, err
+	}
+	return n.Get(ctx, &GetOptions{ID: pipeline.ID})
+}
+
+func (n *namespacedClient) Get(ctx context.Context, options *GetOptions) (*Pipeline, error) {
+	opts := &GetOptions{}
+	*opts = *options
+	if len(options.Name) > 0 {
+		opts.Name = n.namespace + "-" + options.Name
+	}
+	pipeline, err := n.client.Get(ctx, opts)
+	if err != nil {
+		return pipeline, err
+	}
+	pipeline.Name = pipeline.Name[len(n.namespace)+1:]
+	return pipeline, nil
+}
+
+func (n *namespacedClient) Update(ctx context.Context, options *UpdateOptions) (*Pipeline, error) {
+	pipeline, err := n.client.Update(ctx, options)
+	if err != nil {
+		return &Pipeline{}, err
+	}
+	return n.Get(ctx, &GetOptions{ID: pipeline.ID})
+}
+
+func (n *namespacedClient) Delete(ctx context.Context, options *DeleteOptions) error {
+	return n.client.Delete(ctx, options)
+}
+
+func (n *namespacedClient) GetVersion(ctx context.Context, options *GetVersionOptions) (*PipelineVersion, error) {
+	opts := &GetVersionOptions{}
+	*opts = *options
+	if len(options.Name) > 0 {
+		opts.Name = n.namespace + "-" + options.Name
+	}
+	version, err := n.client.GetVersion(ctx, opts)
+	if err != nil {
+		return &PipelineVersion{}, err
+	}
+	version.Name = version.Name[len(n.namespace)+1:]
+	return version, nil
+}
+
+func (n *namespacedClient) CreateVersion(ctx context.Context, options *CreateVersionOptions) (*PipelineVersion, error) {
+	opts := &CreateVersionOptions{}
+	*opts = *options
+	opts.Name = n.namespace + "-" + options.Name
+	version, err := n.client.CreateVersion(ctx, opts)
+	if err != nil {
+		return &PipelineVersion{}, err
+	}
+	return n.GetVersion(ctx, &GetVersionOptions{ID: version.ID})
+}
+
+func (n *namespacedClient) DeleteVersion(ctx context.Context, options *DeleteOptions) error {
+	return n.client.DeleteVersion(ctx, options)
+}
+
+func (n *namespacedClient) CreateJob(ctx context.Context, options *CreateJobOptions) (*Job, error) {
+	opts := &CreateJobOptions{}
+	*opts = *options
+	opts.Name = n.namespace + "-" + options.Name
+	job, err := n.client.CreateJob(ctx, opts)
+	if err != nil {
+		return &Job{}, err
+	}
+	return n.GetJob(ctx, &GetOptions{ID: job.ID})
+}
+
+func (n *namespacedClient) GetJob(ctx context.Context, options *GetOptions) (*Job, error) {
+	opts := &GetOptions{}
+	*opts = *options
+	if len(options.Name) > 0 {
+		opts.Name = n.namespace + "-" + options.Name
+	}
+	job, err := n.client.GetJob(ctx, opts)
+	if err != nil {
+		return &Job{}, err
+	}
+	if len(job.Name) == 0 {
+		return &Job{}, fmt.Errorf("unknown error occurred - named not received from GetJob for %s", opts.Name)
+	}
+	job.Name = job.Name[len(n.namespace)+1:]
+	return job, nil
+}
+
+func (n *namespacedClient) DeleteJob(ctx context.Context, options *DeleteOptions) error {
+	return n.client.DeleteJob(ctx, options)
+}
+
+func NewNamespaced(client Interface, namespace string) Interface {
+	return &namespacedClient{client: client, namespace: namespace}
+}
+
 var _ Interface = &pipelinesApi{}
+var _ Interface = &namespacedClient{}
 
 func stringPointer(s string) *string {
 	return &s

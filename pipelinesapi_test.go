@@ -352,22 +352,22 @@ var _ = Describe("PipelinesApi", func() {
 		BeforeEach(func() {
 			var err error
 			pipeline, err = api.Create(ctx, &kfp.CreateOptions{
-				Name: name,
+				Name:        name,
 				Description: description,
-				Workflow: newWhaleSay(),
+				Workflow:    newWhaleSay(),
 			})
 			Expect(err).ToNot(HaveOccurred())
 			versionId = pipeline.ID
 			job, err = api.CreateJob(ctx, &kfp.CreateJobOptions{
-				Name: name + "-1m-",
-				Description: fmt.Sprintf("Run %s every 1m", name),
-				PipelineID: pipeline.ID,
-				VersionID: versionId,
-				CronSchedule: "* * * * *",
-				StartTime: timePointer(time.Now()),
-				EndTime: timePointer(time.Now().Add(time.Second * 10)),
+				Name:           name + "-1m-",
+				Description:    fmt.Sprintf("Run %s every 1m", name),
+				PipelineID:     pipeline.ID,
+				VersionID:      versionId,
+				CronSchedule:   "* * * * *",
+				StartTime:      timePointer(time.Now()),
+				EndTime:        timePointer(time.Now().Add(time.Second * 10)),
 				MaxConcurrency: 2,
-				Enabled: true,
+				Enabled:        true,
 			})
 			Expect(job).ToNot(BeNil())
 			Expect(err).ToNot(HaveOccurred())
