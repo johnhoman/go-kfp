@@ -64,11 +64,17 @@ type Pipeline struct {
 	DefaultVersionID string
 }
 
+type Parameter struct {
+	Name string
+	Value string
+}
+
 type PipelineVersion struct {
 	ID         string
 	Name       string
 	CreatedAt  time.Time
 	PipelineID string
+	Parameters []Parameter
 }
 
 type CreateJobOptions struct {

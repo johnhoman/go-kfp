@@ -303,6 +303,13 @@ func (p *pipelinesApi) GetVersion(ctx context.Context, options *GetVersionOption
 		refs := out.GetPayload().ResourceReferences
 		version.PipelineID = refs[0].Key.ID
 	}
+	if out.GetPayload().Parameters != nil && len(out.GetPayload().Parameters) > 0 {
+		params := make([]Parameter, 0, len(out.GetPayload().Parameters))
+		for _, param := range out.GetPayload().Parameters {
+			params = append(params, Parameter{Name: param.Name, Value: param.Value})
+		}
+		version.Parameters = params
+	}
 	return version, nil
 }
 
