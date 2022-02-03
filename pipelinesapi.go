@@ -418,6 +418,10 @@ func (p *pipelinesApi) Get(ctx context.Context, options *GetOptions) (*Pipeline,
 			ID:      out.ID,
 		}, nil)
 		if err != nil {
+			e, ok := err.(*pipeline_service.GetPipelineDefault)
+			if ok && e.Code() == http.StatusNotFound {
+				return &Pipeline{}, NewNotFound()
+			}
 			return rv, err
 		}
 		*pl = *(model.GetPayload())
@@ -478,12 +482,14 @@ func (p *pipelinesApi) Delete(ctx context.Context, options *DeleteOptions) error
 		&pipeline_service.DeletePipelineParams{Context: ctx, ID: options.ID},
 		p.authInfo,
 	)
-	if def, ok := err.(*pipeline_service.DeletePipelineDefault); ok {
-		if def.Code() == http.StatusNotFound {
+	if err != nil {
+		e, ok := err.(*pipeline_service.DeletePipelineDefault)
+		if ok && e.Code() == http.StatusNotFound {
 			return NewNotFound()
 		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func New(service PipelineService, authInfo runtime.ClientAuthInfoWriter) *pipelinesApi {

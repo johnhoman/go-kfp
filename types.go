@@ -65,7 +65,7 @@ type Pipeline struct {
 }
 
 type Parameter struct {
-	Name string
+	Name  string
 	Value string
 }
 
