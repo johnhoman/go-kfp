@@ -158,6 +158,16 @@ func (p *pipelinesApi) GetJob(ctx context.Context, options *GetOptions) (*Job, e
 	job.Description = out.GetPayload().Description
 	job.StartTime = time.Time(out.GetPayload().Trigger.CronSchedule.StartTime)
 	job.EndTime = time.Time(out.GetPayload().Trigger.CronSchedule.EndTime)
+
+	if len(job.VersionID) > 0 {
+		version, err := p.GetVersion(ctx, &GetVersionOptions{ID: job.VersionID})
+		if err != nil {
+			return &Job{}, err
+		}
+		if version.Parameters != nil {
+			job.Parameters = version.Parameters
+		}
+	}
 	return job, nil
 }
 

@@ -108,4 +108,5 @@ type Job struct {
 	MaxConcurrency int
 	Enabled        bool
 	CreatedAt      time.Time
+	Parameters     []Parameter
 }

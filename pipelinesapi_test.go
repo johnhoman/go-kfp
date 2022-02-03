@@ -278,7 +278,7 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(version.Name).To(Equal(pipeline.Name))
 			Expect(version.ID).To(Equal(pipeline.ID))
 			// This test is very flaky
-			Expect(time.Now().Sub(version.CreatedAt)).To(BeNumerically("~", 500 * time.Millisecond, time.Second))
+			Expect(time.Now().Sub(version.CreatedAt)).To(BeNumerically("~", 500*time.Millisecond, time.Second))
 
 			version, err = api.CreateVersion(ctx, &kfp.CreateVersionOptions{
 				Name:        name + "-1",
@@ -390,6 +390,15 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(j).ToNot(BeNil())
 			Expect(j.ID).To(Equal(job.ID))
+		})
+		It("Has the job parameters", func() {
+			j, err := api.GetJob(ctx, &kfp.GetOptions{Name: name + "-1m-"})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(j).ToNot(BeNil())
+
+			Expect(j.Parameters).To(HaveLen(1))
+			Expect(j.Parameters[0].Name).Should(Equal("name"))
+			Expect(j.Parameters[0].Value).Should(Equal("Jack"))
 		})
 	})
 	Describe("NamespacedClient", func() {
