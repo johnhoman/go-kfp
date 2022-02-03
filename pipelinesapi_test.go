@@ -316,7 +316,7 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(version.PipelineID).To(Equal(pipeline.ID))
 			Expect(version.Name).To(Equal(pipeline.Name))
 			Expect(version.ID).To(Equal(pipeline.ID))
-			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 0, time.Second))
+			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 0, 2 * time.Second))
 			Expect(version.Parameters).To(HaveLen(1))
 			Expect(version.Parameters[0].Name).To(Equal("name"))
 			Expect(version.Parameters[0].Value).To(Equal("Jack"))
