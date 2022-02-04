@@ -25,6 +25,9 @@ generate: swagger
 	mkdir -p $(shell pwd)/api/job
 	$(SWAGGER) generate client -f https://raw.githubusercontent.com/kubeflow/pipelines/master/backend/api/swagger/job.swagger.json \
 		--target $(shell pwd)/api/job
+	mkdir -p $(shell pwd)/api/experiment
+	$(SWAGGER) generate client -f https://raw.githubusercontent.com/kubeflow/pipelines/master/backend/api/swagger/experiment.swagger.json \
+		--target $(shell pwd)/api/experiment
 	go mod tidy
 
 .PHONY: fmt
