@@ -88,6 +88,7 @@ type CreateJobOptions struct {
 	EndTime        *time.Time
 	MaxConcurrency int
 	Enabled        bool
+	Parameters     []Parameter
 }
 
 type GetJobOption struct {

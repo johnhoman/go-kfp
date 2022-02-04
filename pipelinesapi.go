@@ -50,11 +50,22 @@ func (p *pipelinesApi) CreateJob(ctx context.Context, options *CreateJobOptions)
 		start = *options.StartTime
 	}
 
+	var apiParams []*jobmodels.APIParameter = nil
+	if options.Parameters != nil && len(options.Parameters) > 0 {
+		apiParams = make([]*jobmodels.APIParameter, 0, len(options.Parameters))
+		for _, param := range options.Parameters {
+			apiParams = append(apiParams, &jobmodels.APIParameter{
+				Name:  param.Name,
+				Value: param.Value,
+			})
+		}
+	}
+
 	body := &jobmodels.APIJob{
 		Name:        options.Name,
 		Description: options.Description,
 		PipelineSpec: &jobmodels.APIPipelineSpec{
-			Parameters: nil,
+			Parameters: apiParams,
 			PipelineID: options.PipelineID,
 		},
 		ResourceReferences: []*jobmodels.APIResourceReference{{
@@ -159,15 +170,15 @@ func (p *pipelinesApi) GetJob(ctx context.Context, options *GetOptions) (*Job, e
 	job.StartTime = time.Time(out.GetPayload().Trigger.CronSchedule.StartTime)
 	job.EndTime = time.Time(out.GetPayload().Trigger.CronSchedule.EndTime)
 
-	if len(job.VersionID) > 0 {
-		version, err := p.GetVersion(ctx, &GetVersionOptions{ID: job.VersionID})
-		if err != nil {
-			return &Job{}, err
+	apiParams := out.GetPayload().PipelineSpec.Parameters
+	if apiParams != nil && len(apiParams) > 0 {
+		params := make([]Parameter, 0, len(apiParams))
+		for _, param := range apiParams {
+			params = append(params, Parameter{Name: param.Name, Value: param.Value})
 		}
-		if version.Parameters != nil {
-			job.Parameters = version.Parameters
-		}
+		job.Parameters = params
 	}
+
 	return job, nil
 }
 

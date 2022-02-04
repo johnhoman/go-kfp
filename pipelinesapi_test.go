@@ -316,7 +316,7 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(version.PipelineID).To(Equal(pipeline.ID))
 			Expect(version.Name).To(Equal(pipeline.Name))
 			Expect(version.ID).To(Equal(pipeline.ID))
-			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 0, 2 * time.Second))
+			Expect(time.Now().UTC().Sub(version.CreatedAt)).To(BeNumerically("~", 0, 2*time.Second))
 			Expect(version.Parameters).To(HaveLen(1))
 			Expect(version.Parameters[0].Name).To(Equal("name"))
 			Expect(version.Parameters[0].Value).To(Equal("Jack"))
@@ -371,6 +371,7 @@ var _ = Describe("PipelinesApi", func() {
 				EndTime:        timePointer(time.Now().Add(time.Second * 10)),
 				MaxConcurrency: 2,
 				Enabled:        true,
+				Parameters:     []kfp.Parameter{{Name: "name", Value: "Ben"}},
 			})
 			Expect(job).ToNot(BeNil())
 			Expect(err).ToNot(HaveOccurred())
@@ -398,7 +399,7 @@ var _ = Describe("PipelinesApi", func() {
 
 			Expect(j.Parameters).To(HaveLen(1))
 			Expect(j.Parameters[0].Name).Should(Equal("name"))
-			Expect(j.Parameters[0].Value).Should(Equal("Jack"))
+			Expect(j.Parameters[0].Value).Should(Equal("Ben"))
 		})
 	})
 	Describe("NamespacedClient", func() {
