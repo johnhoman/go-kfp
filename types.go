@@ -111,3 +111,17 @@ type Job struct {
 	CreatedAt      time.Time
 	Parameters     []Parameter
 }
+
+type Experiment struct {
+	Name        string
+	ID          string
+	Description string
+	Namespace   string
+	CreatedAt   time.Time
+}
+
+type CreateExperimentOptions struct {
+	Name        string
+	Description string
+	Namespace   string
+}

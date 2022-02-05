@@ -402,6 +402,30 @@ var _ = Describe("PipelinesApi", func() {
 			Expect(j.Parameters[0].Value).Should(Equal("Ben"))
 		})
 	})
+	Describe("Experiments", func() {
+		var experiment *kfp.Experiment
+		BeforeEach(func() {
+			var err error
+			experiment, err = api.CreateExperiment(ctx, &kfp.CreateExperimentOptions{
+				Name:        name,
+				Description: description,
+			})
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(experiment).ToNot(BeNil())
+		})
+		AfterEach(func() {
+			err := api.DeleteExperiment(ctx, &kfp.DeleteOptions{ID: experiment.ID})
+			if err != nil {
+				Expect(err).Should(Equal(kfp.NewNotFound()))
+			}
+		})
+		It("should assign parameters", func() {
+			Expect(experiment.Name).Should(Equal(name))
+			Expect(experiment.ID).ShouldNot(Equal(""))
+			Expect(experiment.CreatedAt).ShouldNot(Equal(time.Time{}))
+			Expect(experiment.Description).Should(Equal(description))
+		})
+	})
 	Describe("NamespacedClient", func() {
 		var job *kfp.Job
 		var versionId string

@@ -18,6 +18,7 @@ package kfp
 
 import (
 	"context"
+	"github.com/johnhoman/go-kfp/api/experiment/client/experiment_service"
 
 	"github.com/go-openapi/runtime"
 
@@ -42,6 +43,11 @@ type PipelineService interface {
 	DeleteJob(params *jobs.DeleteJobParams, authInfo runtime.ClientAuthInfoWriter, opts ...jobs.ClientOption) (*jobs.DeleteJobOK, error)
 	GetJob(params *jobs.GetJobParams, authInfo runtime.ClientAuthInfoWriter, opts ...jobs.ClientOption) (*jobs.GetJobOK, error)
 	ListJobs(params *jobs.ListJobsParams, authInfo runtime.ClientAuthInfoWriter, opts ...jobs.ClientOption) (*jobs.ListJobsOK, error)
+
+	CreateExperiment(params *experiment_service.CreateExperimentParams, authInfo runtime.ClientAuthInfoWriter, opts ...experiment_service.ClientOption) (*experiment_service.CreateExperimentOK, error)
+	DeleteExperiment(params *experiment_service.DeleteExperimentParams, authInfo runtime.ClientAuthInfoWriter, opts ...experiment_service.ClientOption) (*experiment_service.DeleteExperimentOK, error)
+	GetExperiment(params *experiment_service.GetExperimentParams, authInfo runtime.ClientAuthInfoWriter, opts ...experiment_service.ClientOption) (*experiment_service.GetExperimentOK, error)
+	ListExperiment(params *experiment_service.ListExperimentParams, authInfo runtime.ClientAuthInfoWriter, opts ...experiment_service.ClientOption) (*experiment_service.ListExperimentOK, error)
 }
 
 type Interface interface {
@@ -57,4 +63,8 @@ type Interface interface {
 	CreateJob(ctx context.Context, options *CreateJobOptions) (*Job, error)
 	GetJob(ctx context.Context, options *GetOptions) (*Job, error)
 	DeleteJob(ctx context.Context, options *DeleteOptions) error
+
+	CreateExperiment(ctx context.Context, options *CreateExperimentOptions) (*Experiment, error)
+	GetExperiment(ctx context.Context, options *GetOptions) (*Experiment, error)
+	DeleteExperiment(ctx context.Context, options *DeleteOptions) error
 }

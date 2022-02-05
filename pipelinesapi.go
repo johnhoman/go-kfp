@@ -21,24 +21,92 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-openapi/strfmt"
-	"github.com/johnhoman/go-kfp/api/pipeline_upload/models"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 
+	"github.com/johnhoman/go-kfp/api/experiment/client/experiment_service"
+	experimentmodels "github.com/johnhoman/go-kfp/api/experiment/models"
 	"github.com/johnhoman/go-kfp/api/job/client/job_service"
 	jobmodels "github.com/johnhoman/go-kfp/api/job/models"
 	"github.com/johnhoman/go-kfp/api/pipeline/client/pipeline_service"
 	pipelinemodels "github.com/johnhoman/go-kfp/api/pipeline/models"
 	"github.com/johnhoman/go-kfp/api/pipeline_upload/client/pipeline_upload_service"
+	"github.com/johnhoman/go-kfp/api/pipeline_upload/models"
 )
 
 type pipelinesApi struct {
 	service  PipelineService
 	authInfo runtime.ClientAuthInfoWriter
+}
+
+func (p *pipelinesApi) CreateExperiment(ctx context.Context, options *CreateExperimentOptions) (*Experiment, error) {
+	body := &experimentmodels.APIExperiment{
+		Description: options.Description,
+		Name:        options.Name,
+	}
+	if len(options.Namespace) > 0 {
+		ref := &experimentmodels.APIResourceReference{
+			Key: &experimentmodels.APIResourceKey{
+				ID:   options.Namespace,
+				Type: experimentmodels.NewAPIResourceType(experimentmodels.APIResourceTypeNAMESPACE),
+			},
+			Relationship: experimentmodels.NewAPIRelationship(experimentmodels.APIRelationshipOWNER),
+		}
+		body.ResourceReferences = []*experimentmodels.APIResourceReference{ref}
+	}
+	in := &experiment_service.CreateExperimentParams{Context: ctx, Body: body}
+	out, err := p.service.CreateExperiment(in, p.authInfo)
+	if err != nil {
+		return &Experiment{}, err
+	}
+	if out.GetPayload() != nil {
+		return p.GetExperiment(ctx, &GetOptions{ID: out.GetPayload().ID})
+	}
+	return &Experiment{}, nil
+}
+
+func (p *pipelinesApi) GetExperiment(ctx context.Context, options *GetOptions) (*Experiment, error) {
+	in := &experiment_service.GetExperimentParams{
+		Context: ctx,
+		ID:      options.ID,
+	}
+	out, err := p.service.GetExperiment(in, p.authInfo)
+	if err != nil {
+		return &Experiment{}, err
+	}
+	experiment := &Experiment{}
+	if out.GetPayload() != nil {
+		experiment.Name = out.GetPayload().Name
+		experiment.CreatedAt = time.Time(out.GetPayload().CreatedAt)
+		experiment.ID = out.GetPayload().ID
+		experiment.Description = out.GetPayload().Description
+
+		if out.GetPayload().ResourceReferences != nil && len(out.GetPayload().ResourceReferences) > 0 {
+			for _, ref := range out.GetPayload().ResourceReferences {
+				if *ref.Key.Type == experimentmodels.APIResourceTypeNAMESPACE {
+					experiment.Namespace = ref.Key.ID
+				}
+			}
+		}
+	}
+	return experiment, nil
+}
+
+func (p *pipelinesApi) DeleteExperiment(ctx context.Context, options *DeleteOptions) error {
+	in := &experiment_service.DeleteExperimentParams{Context: ctx, ID: options.ID}
+	_, err := p.service.DeleteExperiment(in, p.authInfo)
+	if err != nil {
+		e, ok := err.(*experiment_service.CreateExperimentDefault)
+		if ok && e.Code() == http.StatusNotFound {
+			return NewNotFound()
+		}
+		return err
+	}
+	return nil
 }
 
 // CreateJob starts a scheduled job on Kubeflow. Start and end dates can be specified
@@ -520,6 +588,19 @@ func New(service PipelineService, authInfo runtime.ClientAuthInfoWriter) *pipeli
 type namespacedClient struct {
 	client    Interface
 	namespace string
+}
+
+func (n *namespacedClient) CreateExperiment(ctx context.Context, options *CreateExperimentOptions) (*Experiment, error) {
+	options.Namespace = n.namespace
+	return n.CreateExperiment(ctx, options)
+}
+
+func (n *namespacedClient) GetExperiment(ctx context.Context, options *GetOptions) (*Experiment, error) {
+	return n.GetExperiment(ctx, options)
+}
+
+func (n *namespacedClient) DeleteExperiment(ctx context.Context, options *DeleteOptions) error {
+	return n.DeleteExperiment(ctx, options)
 }
 
 func (n *namespacedClient) Create(ctx context.Context, options *CreateOptions) (*Pipeline, error) {

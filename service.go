@@ -19,6 +19,7 @@ package kfp
 import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+	"github.com/johnhoman/go-kfp/api/experiment/client/experiment_service"
 	"github.com/johnhoman/go-kfp/api/job/client/job_service"
 	ps "github.com/johnhoman/go-kfp/api/pipeline/client/pipeline_service"
 	up "github.com/johnhoman/go-kfp/api/pipeline_upload/client/pipeline_upload_service"
@@ -27,17 +28,20 @@ import (
 type UploadService = up.ClientService
 type Service = ps.ClientService
 type JobService = job_service.ClientService
+type ExperimentService experiment_service.ClientService
 
 type pipelineService struct {
 	UploadService
 	Service
 	JobService
+	ExperimentService
 }
 
 func NewPipelineService(transport runtime.ClientTransport) PipelineService {
 	return &pipelineService{
-		UploadService: up.New(transport, strfmt.Default),
-		Service:       ps.New(transport, strfmt.Default),
-		JobService:    job_service.New(transport, strfmt.Default),
+		UploadService:     up.New(transport, strfmt.Default),
+		Service:           ps.New(transport, strfmt.Default),
+		JobService:        job_service.New(transport, strfmt.Default),
+		ExperimentService: experiment_service.New(transport, strfmt.Default),
 	}
 }
